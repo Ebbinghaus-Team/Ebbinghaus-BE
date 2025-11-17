@@ -1,0 +1,198 @@
+# CLAUDE.md
+
+이 파일은 Claude Code(claude.ai/code)가 이 리포지토리의 코드로 작업할 때 참고할 수 있는 가이드를 제공합니다.
+
+## 1\. 프로젝트 개요
+
+\*\*Ebbinghaus-BE (또뿔래, ttopullae)\*\*는 에빙하우스의 망각 곡선에 기반한 '간헐적 복습' 학습 시스템을 구현한 Spring Boot 3.5.7 백엔드 서비스입니다. 이 서비스는 사용자가 직접 학습 문제를 생성하고, **"Two-Strike" 모델**(1일 및 7일 복습 관문)을 통해 복습하도록 하여 '능동적 인출(Active Recall)'과 '장기 기억'을 촉진합니다.
+
+자세한 프로젝트 내용은 @PRD.md 를 참고
+
+## 2\. 기술 스택
+
+- **언어**: Java 21
+- **프레임워크**: Spring Boot 3.5.7
+- **데이터**: Spring Data JPA (Hibernate 포함), MySQL 8.0 (운영), H2 (테스트)
+- **빌드**: Gradle
+- **기타**: Spring Validation, Lombok
+
+## 3\. 아키텍처
+
+백엔드 단일 리포지토리 구성입니다.
+
+### 3.1. 백엔드 아키텍처
+
+백엔드는 도메인 주도 설계(DDD)를 따르는 계층형 아키텍처를 사용하며, 각 도메인(Bounded Context)이 명확히 분리되어 있습니다.
+
+```
+com.ebbinghaus.ttopullae/
+├── user/
+│   ├── presentation/    # User API 컨트롤러
+│   ├── application/     # User 비즈니스 로직 (서비스)
+│   ├── domain/          # User 도메인 모델, 엔티티, 리포지토리
+│   └── exception/       # User 관련 예외
+├── studyroom/
+│   ├── presentation/    # Studyroom API 컨트롤러
+│   ├── application/     # Studyroom 비즈니스 로직
+│   ├── domain/          # Studyroom 도메인 모델
+│   └── exception/       # Studyroom 관련 예외
+├── problem/
+│   ├── presentation/    # Problem API 컨트롤러
+│   ├── application/     # Problem 비즈니스 로직
+│   ├── domain/          # Problem 도메인 모델
+│   └── exception/       # Problem 관련 예외
+└── global/
+    ├── config/          # 전역 설정 (Security, JPA Auditing 등)
+    ├── BaseTimeEntity/  # 공통 엔티티 (createdAt)
+    ├── exception/       # 전역 예외 처리 핸들러
+    └── util/            # 공통 유틸리티 클래스
+```
+
+**주요 아키텍처 패턴**:
+
+- **도메인 주도 설계(DDD)**: `user`, `studyroom`, `problem` 등 명확한 Bounded Context로 분리.
+- **계층형 아키텍처**: `presentation` -\> `application` -\> `domain` 의 명확한 의존성 방향.
+- **JPA Auditing**: `BaseTimeEntity`를 통해 모든 엔티티의 `createdAt` 자동 추적.
+- **지연 로딩(Lazy Loading)**: `FetchType.LAZY`를 기본으로 사용하여 N+1 쿼리 문제 방지.
+
+### 3.2. 핵심 도메인 구조
+
+1.  **User 도메인** (`com.ebbinghaus.ttopullae.user`)
+    - 사용자 계정, 이메일 알림, 환경 설정 관리
+2.  **Study Room 도메인** (`com.ebbinghaus.ttopullae.studyroom`)
+    - **StudyRoom**: 개인 또는 그룹 스터디 공간
+    - **RoomType**: `PERSONAL` 또는 `GROUP`
+    - **StudyRoomMember**: 그룹 멤버십을 위한 조인 테이블
+    - 개인방은 소유자 1명, 그룹방은 고유 참여 코드를 사용
+3.  **Problem 도메인** (`com.ebbinghaus.ttopullae.problem`)
+    - **Problem**: 사용자가 생성한 학습 문제
+    - **ProblemType**: `MULTIPLE_CHOICE` (객관식), `TRUE_FALSE` (OX), `SHORT_ANSWER` (단답형), `ESSAY` (서술형)
+    - **ProblemChoice**: 객관식 선택지
+    - **ProblemKeyword**: AI 기반 서술형 채점을 위한 키워드
+    - **ProblemAttempt**: 각 문제 풀이 시도 기록
+    - **ProblemReviewState**: 문제별 개별 사용자의 간헐적 복습 상태 추적
+4.  **Global 도메인** (`com.ebbinghaus.ttopullae.global`)
+    - **BaseTimeEntity**: 모든 엔티티에 `createdAt` 타임스탬프를 제공하는 추상 클래스
+
+### 3.3. "Two-Strike" 간헐적 복습 모델
+
+문제는 사용자의 성과에 따라 다음 복습 관문을 거칩니다.
+
+1.  **GATE\_1** (1일차 복습): 생성 또는 이전 시도 후 1일 뒤에 문제 등장
+2.  **GATE\_2** (7일차 복습): GATE\_1 통과 후 7일 뒤에 문제 등장
+3.  **GRADUATED** (졸업): GATE\_2 통과 후 문제 완료
+
+**강등 규칙**: 오답 시 문제를 이전 관문으로 강등시켜, 어려운 자료에 반복적으로 노출되도록 보장합니다.
+
+### 3.4. 주요 디자인 패턴
+
+- **엔티티 관계**:
+    - 모든 엔티티는 `BaseTimeEntity`를 상속하여 `createdAt` 자동 추적
+    - 메인 애플리케이션 클래스의 `@EnableJpaAuditing` 활성화
+    - 성능 최적화를 위해 `@ManyToOne` 관계에 지연 로딩(Lazy fetching) 사용
+    - '오늘의 복습' 쿼리 효율화를 위해 `ProblemReviewState`의 `(user_id, nextReviewDate)`에 인덱스 설정
+- **문제 소유권**:
+    - **개인방 문제**: 생성자 소유, 1일 후 복습 주기에 자동 등록
+    - **그룹방 문제 (생성자)**: 개인방 문제와 동일하게 취급, 복습 주기에 자동 등록
+    - **그룹방 문제 (타인)**: 첫 번째 풀이 시도 후에만 복습 주기에 등록됨
+
+-----
+
+## 4\. 핵심 비즈니스 규칙
+
+1.  **복습 주기 개인화**: 그룹 스터디라도 모든 문제에 대해 사용자별 `ProblemReviewState`를 가집니다.
+2.  **그룹 문제 활성화**: 다른 멤버의 그룹 문제를 (정답 여부와 관계없이) 풀면, 해당 문제가 개인 복습 주기에 등록됩니다.
+3.  **복습 이월**: 완료하지 않은 '오늘의 복습' 문제는 다음 날로 자동 이월됩니다.
+4.  **일일 제한 없음**: 사용자는 하루에 무제한으로 복습을 완료할 수 있습니다.
+5.  **이메일 알림**: 복습할 문제가 있는 사용자에게 매일 오전 8시(KST)에 알림 메일이 발송됩니다.
+
+-----
+
+## 5\. 개발 규칙
+
+### 5.1. 코딩 스타일
+
+- [구글 자바 스타일 가이드](https://google.github.io/styleguide/javaguide.html) 를 컨벤션으로 한다.
+- 축약어를 쓰지 않고, 네이밍을 보고도 어떤 역할을 하는지 쉽게 알 수 있어야 한다.
+- 가독성이 좋은 코드를 작성한다.
+- 복잡한 기능이 있다면 한글로 짧막한 주석을 추가한다.
+- DTO는 `record` 를 사용한다.
+- **DTO 네이밍 규칙**은 다음의 데이터 흐름을 따른다:
+    - `Client -> Controller`: **`...Request`** (예: `ProblemCreateRequest`)
+    - `Controller -> Service`: **`...Command`** (서비스 계층에 작업을 지시하는 객체, 예: `ProblemCreateCommand`)
+    - `Service -> Controller`: **`...Result`** 또는 **Domain 객체** (서비스 처리 결과)
+    - `Controller -> Client`: **`...Response`** (예: `ProblemDetailResponse`)
+
+### 5.2. Git 규칙
+
+- 깃 허브 저장소: `[프로젝트 깃허브 저장소 URL]`
+- Main Branch: `main`
+- 깃 컨벤션은 'Conventional Commits' 를 따른다.
+- 커밋 메세지는 한글로 작성한다.
+- 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
+- PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
+
+### 5.3. 그 외
+
+- 개발 구현 완료 되면 테스트 코드를 작성하여 구현한 기능이 제대로 동작하는지 확인한다.
+- 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
+- 모든 엔티티는 `BaseTimeEntity`를 상속하여 생성 시간을 관리한다.
+
+-----
+
+## 6\. 빌드 및 실행 명령어
+
+### 6.1. 개발 환경
+
+```bash
+# 애플리케이션 실행
+./gradlew bootRun
+
+# 프로젝트 빌드
+./gradlew build
+
+# 테스트 실행
+./gradlew test
+
+# 특정 테스트 클래스 실행
+./gradlew test --tests com.ebbinghaus.ttopullae.TtopullaeApplicationTests
+
+# 빌드 산출물 정리
+./gradlew clean
+```
+
+### 6.2. 도커 (Docker)
+
+```bash
+# MySQL 데이터베이스 시작 (개발용)
+docker-compose up -d
+
+# MySQL 데이터베이스 중지
+docker-compose down
+
+# MySQL 로그 보기
+docker logs mysql-server
+```
+
+-----
+
+## 7\. 데이터베이스 설정
+
+- **데이터베이스**: MySQL 8.0 (Port: 3306)
+- **데이터베이스명**: `main_db`
+- **자격 증명**: root / asd1234 (개발용)
+- **JPA DDL**: `create` 모드 (시작 시 스키마 재생성)
+- **연결 설정**: `src/main/resources/application.yaml` 에 구성됨
+
+⚠️ **주의**: 개발 환경은 `ddl-auto: create` 모드로 설정되어, 애플리케이션 시작 시마다 **스키마가 재생성되고 데이터가 삭제됩니다.** 운영 환경에서는 절대 사용하지 마십시오.
+
+## 8\. 프로젝트 네이밍
+
+- **루트 프로젝트명**: `ttopullae` (`settings.gradle`에 정의됨)
+- **그룹 ID**: `com.ebbinghaus`
+- **기본 패키지**: `com.ebbinghaus.ttopullae`
+
+## 9\. 문서
+
+- **PRD**: `docs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
+
