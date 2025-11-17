@@ -196,3 +196,31 @@ docker logs mysql-server
 
 - **PRD**: `docs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
 
+-----
+
+## 10\. MVP 제한사항 및 임시 구현
+
+### 10.1. 인증/인가 (Authentication/Authorization)
+
+현재 MVP 단계에서는 Spring Security 기반 인증 시스템이 구현되지 않았습니다.
+
+**임시 인증 방식:**
+- 모든 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
+- 예시: `{"userId": 1, "name": "스터디방", "description": "자바 스터디"}`
+
+**향후 마이그레이션 계획:**
+- Spring Security + JWT 인증 구현 후:
+  1. Request DTO에서 `userId` 필드 제거
+  2. `SecurityContext`에서 인증된 사용자 정보 추출
+  3. Controller 메서드에 `@AuthenticationPrincipal` 적용
+
+**코드 작성 시 주의사항:**
+- Request DTO의 `userId` 필드에 명확한 주석 추가:
+  ```java
+  // TODO: [인증 구현 후 제거] 임시로 Request Body에서 사용자 식별
+  @NotNull(message = "사용자 ID는 필수입니다")
+  Long userId;
+  ```
+- Service 계층에서는 userId를 파라미터로 받아 User 엔티티를 조회하는 방식 사용
+- 향후 `UserService.getCurrentUser()` 같은 메서드로 교체 가능하도록 설계
+
