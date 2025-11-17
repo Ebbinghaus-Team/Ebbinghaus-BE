@@ -1,7 +1,11 @@
 package com.ebbinghaus.ttopullae.studyroom.presentation;
 
-import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomCreateResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/study-rooms")
 @RequiredArgsConstructor
-public class StudyRoomController {
+public class StudyRoomController implements StudyRoomControllerDocs {
 
     private final StudyRoomService studyRoomService;
 

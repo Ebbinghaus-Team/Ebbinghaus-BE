@@ -2,10 +2,12 @@ package com.ebbinghaus.ttopullae.studyroom.presentation;
 
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
-import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoomMemberRepository;
-import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoomRepository;
+import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomMemberRepository;
+import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomRepository;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.user.domain.User;
-import com.ebbinghaus.ttopullae.user.domain.UserRepository;
+import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

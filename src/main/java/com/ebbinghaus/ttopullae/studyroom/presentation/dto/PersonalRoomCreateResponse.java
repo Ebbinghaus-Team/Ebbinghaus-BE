@@ -1,6 +1,6 @@
-package com.ebbinghaus.ttopullae.studyroom.presentation;
+package com.ebbinghaus.ttopullae.studyroom.presentation.dto;
 
-import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomCreateResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 
 import java.time.LocalDateTime;
 
