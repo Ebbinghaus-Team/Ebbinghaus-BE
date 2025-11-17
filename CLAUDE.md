@@ -132,6 +132,57 @@ com.ebbinghaus.ttopullae/
 - 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
 
+### 5.2.1 브랜치 전략 (Branch Strategy)
+
+본 프로젝트는 개발자별 작업 분리를 명확히 하고 브랜치 히스토리를 안정적으로 추적하기 위해  
+**"GitHub 사용자명 / Conventional Prefix - 브랜치 번호 - 기능 설명(kebab-case)"** 형식을 표준 브랜치 네이밍 규칙으로 사용한다.
+
+형식:
+{github-username}/{prefix}-{branch-number}-{kebab-case-description}
+
+#### 규칙 상세
+
+1. **GitHub 사용자명을 접두사로 반드시 포함한다.**
+    - 예: `hyerimh`, `chxghee` 등
+
+2. **브랜치 Prefix는 Conventional Commits 규칙을 따른다.**
+    - `feat`: 기능 개발
+    - `fix`: 버그 수정
+    - `refactor`: 리팩토링
+    - `chore`: 설정, 빌드, CI 등 기타 작업
+    - `docs`: 문서 작성 및 수정
+
+3. **브랜치 번호(branch-number)는 개발자별로 독립적으로 증가하는 일련 번호이다.**
+    - 개발자가 만든 브랜치의 순서에 따라 1부터 증가
+    - 예: 첫 기능 개발 → `feat-1`, 두 번째 → `feat-2`
+
+4. **기능 설명은 kebab-case로 작성하며, 간결하고 명확해야 한다.**
+    - 예: `generate-entity`, `implement-review-logic`, `update-studyroom-api`
+
+---
+
+#### 예시
+
+| 개발자     | 목적                 | 브랜치 이름 |
+|------------|----------------------|-------------|
+| hyerimh    | 엔티티 설계          | `hyerimh/feat-1-generate-entity` |
+| chxghee  | 문제 생성 API 구현   | `chxghee/feat-3-create-problem-api` |
+| chxghee    | 복습 로직 버그 수정 | `chxghee/fix-2-review-schedule-bug` |
+| hyerimh    | DDL 스키마 수정      | `hyerimh/chore-4-update-schema` |
+| hyerimh      | 서비스 레이어 리팩토링 | `hyerimh/refactor-5-service-layer` |
+
+---
+
+#### 브랜치 병합 규칙
+
+- 모든 브랜치는 `main`에 직접 push할 수 없으며 **반드시 Pull Request를 통해 병합한다.**
+- 리뷰어 **1명 이상 승인 필수**
+- 강제 push 금지 (force push)
+- 브랜치 삭제는 PR 머지 후 GitHub에서 자동 삭제 옵션 사용을 권장
+
+
+
+
 ### 5.3. 예외 처리 (Exception Handling)
 
 프로젝트는 **도메인별 Enum 기반 예외 관리 시스템**을 사용합니다. 모든 예외는 `GlobalExceptionHandler`에서 전역적으로 처리되며, 클라이언트에게 일관된 형식의 `ErrorResponse`를 반환합니다.
