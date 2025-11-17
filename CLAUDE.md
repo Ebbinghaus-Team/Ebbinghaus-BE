@@ -315,7 +315,10 @@ public void sendEmail(String to, String subject) {
 ### 5.4. 그 외
 
 - 개발 구현 완료 되면 테스트 코드를 작성하여 구현한 기능이 제대로 동작하는지 확인한다.
+- 서비스 로직의 테스트는 단위 테스트를 진행한다.
+- API 에 대한 테스트는 @SpringBootTest + MockMvc 를 이용한 통합 테스트를 진행한다.
 - 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
+- API 스펙에 대한 문서화는 swagger 를 이용한다. (자세한 스펙은 @API_SPEC.md에 작성)
 - 모든 엔티티는 `BaseTimeEntity`를 상속하여 생성 시간을 관리한다.
 
 -----
@@ -345,10 +348,10 @@ public void sendEmail(String to, String subject) {
 
 ```bash
 # MySQL 데이터베이스 시작 (개발용)
-docker-compose up -d
+docker compose up -d
 
 # MySQL 데이터베이스 중지
-docker-compose down
+docker compose down
 
 # MySQL 로그 보기
 docker logs mysql-server
@@ -375,6 +378,8 @@ docker logs mysql-server
 ## 9\. 문서
 
 - **PRD**: `docs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
+- **TABLE**: `docs/TABLE.md` - 테이블 설계 문서
+- **SWAGGER**: `docs/SWAGGER.md` - swagger API 문서화 요령을 담은 문서 
 
 -----
 
@@ -382,17 +387,11 @@ docker logs mysql-server
 
 ### 10.1. 인증/인가 (Authentication/Authorization)
 
-현재 MVP 단계에서는 Spring Security 기반 인증 시스템이 구현되지 않았습니다.
+현재 MVP 단계에서는 인증 시스템이 구현되지 않았습니다.
 
 **임시 인증 방식:**
-- 모든 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
+- 모든 로그인 사용자의 정보가 필요한 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
 - 예시: `{"userId": 1, "name": "스터디방", "description": "자바 스터디"}`
-
-**향후 마이그레이션 계획:**
-- Spring Security + JWT 인증 구현 후:
-  1. Request DTO에서 `userId` 필드 제거
-  2. `SecurityContext`에서 인증된 사용자 정보 추출
-  3. Controller 메서드에 `@AuthenticationPrincipal` 적용
 
 **코드 작성 시 주의사항:**
 - Request DTO의 `userId` 필드에 명확한 주석 추가:
@@ -402,5 +401,5 @@ docker logs mysql-server
   Long userId;
   ```
 - Service 계층에서는 userId를 파라미터로 받아 User 엔티티를 조회하는 방식 사용
-- 향후 `UserService.getCurrentUser()` 같은 메서드로 교체 가능하도록 설계
+
 
