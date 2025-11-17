@@ -318,6 +318,7 @@ public void sendEmail(String to, String subject) {
 - 서비스 로직의 테스트는 단위 테스트를 진행한다.
 - API 에 대한 테스트는 @SpringBootTest + MockMvc 를 이용한 통합 테스트를 진행한다.
 - 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
+- 모든 테스트는 Given/When/Then 패턴을 적용한다.
 - API 스펙에 대한 문서화는 swagger 를 이용한다. (자세한 스펙은 @API_SPEC.md에 작성)
 - 모든 엔티티는 `BaseTimeEntity`를 상속하여 생성 시간을 관리한다.
 
