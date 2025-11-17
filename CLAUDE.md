@@ -125,14 +125,143 @@ com.ebbinghaus.ttopullae/
 
 ### 5.2. Git 규칙
 
-- 깃 허브 저장소: `[프로젝트 깃허브 저장소 URL]`
+- 깃 허브 저장소: `https://github.com/Ebbinghaus-Team/Ebbinghaus-BE`
 - Main Branch: `main`
 - 깃 컨벤션은 'Conventional Commits' 를 따른다.
 - 커밋 메세지는 한글로 작성한다.
 - 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
 
-### 5.3. 그 외
+### 5.3. 예외 처리 (Exception Handling)
+
+프로젝트는 **도메인별 Enum 기반 예외 관리 시스템**을 사용합니다. 모든 예외는 `GlobalExceptionHandler`에서 전역적으로 처리되며, 클라이언트에게 일관된 형식의 `ErrorResponse`를 반환합니다.
+
+#### 5.3.1. 예외 처리 아키텍처
+
+```
+global/exception/
+├── ExceptionCode.java           # 예외 코드 인터페이스 (HttpStatus, title, detail)
+├── CommonException.java         # 공통 예외 Enum (BAD_REQUEST, NOT_FOUND 등)
+├── ApplicationException.java    # 비즈니스 로직 예외 클래스
+├── InfrastructureException.java # 외부 시스템 연동 예외 클래스
+├── ErrorResponse.java           # 클라이언트 응답 DTO
+└── GlobalExceptionHandler.java  # @RestControllerAdvice 전역 예외 핸들러
+
+각 도메인/exception/
+└── {Domain}Exception.java       # 도메인별 예외 Enum (ExceptionCode 구현)
+```
+
+#### 5.3.2. 도메인별 예외 Enum 작성 규칙
+
+각 도메인(user, studyroom, problem 등)의 `exception` 패키지에 `ExceptionCode` 인터페이스를 구현한 Enum을 작성합니다.
+
+**작성 예시** (`user/exception/UserException.java`):
+
+```java
+package com.ebbinghaus.ttopullae.user.exception;
+
+import com.ebbinghaus.ttopullae.global.exception.ExceptionCode;
+import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+@AllArgsConstructor
+public enum UserException implements ExceptionCode {
+
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없음", "요청한 ID의 사용자가 존재하지 않습니다."),
+    DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이메일 중복", "이미 사용 중인 이메일입니다."),
+    INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "잘못된 비밀번호", "비밀번호 형식이 올바르지 않습니다.");
+
+    private final HttpStatus httpStatus;
+    private final String title;
+    private final String detail;
+
+    @Override
+    public HttpStatus getHttpStatus() {
+        return httpStatus;
+    }
+
+    @Override
+    public String getTitle() {
+        return title;
+    }
+
+    @Override
+    public String getDetail() {
+        return detail;
+    }
+}
+```
+
+#### 5.3.3. 예외 발생 방법
+
+**1. 비즈니스 로직 예외** (일반적인 도메인 예외)
+
+서비스 계층에서 `ApplicationException`을 사용하여 예외를 발생시킵니다.
+
+```java
+// Service 계층
+public User findUserById(Long userId) {
+    return userRepository.findById(userId)
+        .orElseThrow(() -> new ApplicationException(UserException.USER_NOT_FOUND));
+}
+
+public void createUser(String email) {
+    if (userRepository.existsByEmail(email)) {
+        throw new ApplicationException(UserException.DUPLICATE_EMAIL);
+    }
+    // ... 사용자 생성 로직
+}
+```
+
+**2. 외부 시스템 연동 예외** (S3, 외부 API 등)
+
+외부 인프라와 연동 시 발생하는 예외는 `InfrastructureException`을 사용합니다.
+
+```java
+// 외부 API 호출 실패 시
+public void sendEmail(String to, String subject) {
+    try {
+        emailClient.send(to, subject);
+    } catch (Exception e) {
+        throw new InfrastructureException(EmailException.SEND_FAILED);
+    }
+}
+```
+
+#### 5.3.4. 예외 처리 흐름
+
+1. **예외 발생**: Service 계층에서 `ApplicationException` 또는 `InfrastructureException` 발생
+2. **예외 포착**: `GlobalExceptionHandler`가 `@ExceptionHandler`로 예외를 포착
+3. **응답 변환**: `ErrorResponse` 형식으로 변환
+4. **클라이언트 응답**: HTTP 상태 코드와 함께 JSON 응답 반환
+
+**ErrorResponse 형식**:
+```json
+{
+  "title": "사용자를 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 ID의 사용자가 존재하지 않습니다.",
+  "instance": "/api/users/123"
+}
+```
+
+#### 5.3.5. 예외 네이밍 및 메시지 작성 가이드
+
+- **Enum 이름**: `{DOMAIN}_{ERROR_TYPE}` 형식 (예: `USER_NOT_FOUND`, `ROOM_ACCESS_DENIED`)
+- **HttpStatus**: 적절한 HTTP 상태 코드 선택 (404, 400, 403, 409, 500 등)
+- **title**: 간결한 한글 제목 (예: "사용자를 찾을 수 없음")
+- **detail**: 구체적인 한글 설명 (예: "요청한 ID의 사용자가 존재하지 않습니다.")
+- 클라이언트가 이해하기 쉽고 디버깅에 도움이 되는 명확한 메시지 작성
+
+#### 5.3.6. 주의사항
+
+- 도메인별 예외는 반드시 해당 도메인의 `exception` 패키지에 작성
+- 공통으로 사용되는 예외는 `CommonException`에 정의 (이미 정의된 예외 재사용 권장)
+- 민감한 정보(비밀번호, 토큰 등)는 예외 메시지에 포함하지 않음
+- `ApplicationException`과 `InfrastructureException`을 상황에 맞게 구분하여 사용
+- 예외 로깅은 `GlobalExceptionHandler`에서 자동으로 처리됨 (별도 로깅 불필요)
+
+### 5.4. 그 외
 
 - 개발 구현 완료 되면 테스트 코드를 작성하여 구현한 기능이 제대로 동작하는지 확인한다.
 - 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
