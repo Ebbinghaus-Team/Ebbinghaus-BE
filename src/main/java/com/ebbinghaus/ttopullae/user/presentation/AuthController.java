@@ -8,12 +8,6 @@ import com.ebbinghaus.ttopullae.user.presentation.dto.LoginRequest;
 import com.ebbinghaus.ttopullae.user.presentation.dto.LoginResponse;
 import com.ebbinghaus.ttopullae.user.presentation.dto.SignupRequest;
 import com.ebbinghaus.ttopullae.user.presentation.dto.SignupResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,29 +22,22 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 인증 관련 API를 제공하는 컨트롤러
  */
-@Tag(name = "Auth", description = "인증 API")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthControllerDocs {
 
     private final AuthService authService;
 
     @Value("${jwt.cookie-expiration-seconds}")
     private int cookieExpirationSeconds;
 
-    @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "회원가입 성공",
-                    content = @Content(schema = @Schema(implementation = SignupResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "이메일 중복"
-            )
-    })
+    /**
+     * 회원가입
+     *
+     * @param request 회원가입 요청 정보
+     * @return 생성된 사용자 정보
+     */
     @PostMapping("/signup")
     public ResponseEntity<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
         SignupResult result = authService.signup(request.toCommand());
@@ -58,22 +45,13 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다. 토큰은 HttpOnly 쿠키에 자동으로 저장됩니다.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "사용자를 찾을 수 없음"
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "비밀번호 불일치"
-            )
-    })
+    /**
+     * 로그인
+     *
+     * @param request 로그인 요청 정보
+     * @param httpResponse HTTP 응답 객체 (쿠키 설정용)
+     * @return JWT 토큰 및 사용자 정보
+     */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request,
@@ -88,13 +66,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다. 쿠키에서 JWT 토큰을 삭제합니다.")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "로그아웃 성공"
-            )
-    })
+    /**
+     * 로그아웃
+     *
+     * @param httpResponse HTTP 응답 객체 (쿠키 삭제용)
+     * @return 성공 응답
+     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse httpResponse) {
         // 쿠키에서 JWT 토큰 삭제
