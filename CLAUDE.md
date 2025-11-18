@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-이 파일은 Claude Code(claude.ai/code)가 이 리포지토리의 코드로 작업할 때 참고할 수 있는 가이드를 제공합니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 1\. 프로젝트 개요
 
@@ -312,15 +312,23 @@ public void sendEmail(String to, String subject) {
 - `ApplicationException`과 `InfrastructureException`을 상황에 맞게 구분하여 사용
 - 예외 로깅은 `GlobalExceptionHandler`에서 자동으로 처리됨 (별도 로깅 불필요)
 
-### 5.4. 그 외
+### 5.4. 테스트 작성 규칙
 
 - 개발 구현 완료 되면 테스트 코드를 작성하여 구현한 기능이 제대로 동작하는지 확인한다.
-- 서비스 로직의 테스트는 단위 테스트를 진행한다.
-- API 에 대한 테스트는 @SpringBootTest + MockMvc 를 이용한 통합 테스트를 진행한다.
-- 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
-- 모든 테스트는 Given/When/Then 패턴을 적용한다.
-- API 스펙에 대한 문서화는 swagger 를 이용한다. (자세한 스펙은 @API_SPEC.md에 작성)
-- 모든 엔티티는 `BaseTimeEntity`를 상속하여 생성 시간을 관리한다.
+- **단위 테스트**: 서비스 로직은 Mockito를 사용한 단위 테스트로 검증한다.
+- **통합 테스트**: API는 `@SpringBootTest` + `MockMvc`를 사용한 통합 테스트로 검증한다.
+- 외부 API에 의존하는 기능의 경우, 외부 API를 Mocking하여 테스트를 진행한다.
+- 모든 테스트는 **Given/When/Then 패턴**을 적용한다.
+
+### 5.5. API 문서화 (Swagger)
+
+- API 스펙 문서화는 Swagger를 사용한다.
+- Swagger 작성 가이드라인은 `docs/SWAGGER.md` 참고
+- API에 대한 구체적인 설명은 `docs/API_SPEC.md`에 작성
+
+### 5.6. 엔티티 공통 규칙
+
+- 모든 엔티티는 `BaseTimeEntity`를 상속하여 `createdAt` 자동 추적
 
 -----
 
@@ -335,17 +343,33 @@ public void sendEmail(String to, String subject) {
 # 프로젝트 빌드
 ./gradlew build
 
-# 테스트 실행
+# 테스트 스킵하고 빠른 빌드 (개발 중 빠른 확인용)
+./gradlew build -x test
+
+# 빌드 산출물 정리 후 새로 빌드
+./gradlew clean build
+```
+
+### 6.2. 테스트 실행
+
+```bash
+# 전체 테스트 실행
 ./gradlew test
 
 # 특정 테스트 클래스 실행
-./gradlew test --tests com.ebbinghaus.ttopullae.TtopullaeApplicationTests
+./gradlew test --tests com.ebbinghaus.ttopullae.studyroom.presentation.StudyRoomControllerTest
 
-# 빌드 산출물 정리
-./gradlew clean
+# 특정 테스트 메서드 실행
+./gradlew test --tests com.ebbinghaus.ttopullae.studyroom.application.StudyRoomServiceTest.createPersonalRoom_Success
+
+# 특정 패키지의 모든 테스트 실행
+./gradlew test --tests "com.ebbinghaus.ttopullae.studyroom.*"
+
+# 테스트 결과를 계속 확인하며 실행 (continuous mode)
+./gradlew test --continuous
 ```
 
-### 6.2. 도커 (Docker)
+### 6.3. 도커 (Docker)
 
 ```bash
 # MySQL 데이터베이스 시작 (개발용)
