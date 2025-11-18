@@ -2,6 +2,7 @@ package com.ebbinghaus.ttopullae.studyroom.presentation;
 
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
@@ -10,10 +11,12 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -76,5 +79,20 @@ public class StudyRoomController implements StudyRoomControllerDocs {
         GroupRoomJoinResult result = studyRoomService.joinGroupRoom(request.toCommand(userId));
         GroupRoomJoinResponse response = GroupRoomJoinResponse.from(result);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * 사용자의 개인 공부방 목록을 조회합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @return 개인 공부방 목록 (문제 수, 완료 문제 수 포함)
+     */
+    @GetMapping("/personal")
+    public ResponseEntity<PersonalRoomListResponse> getPersonalRooms(
+            @LoginUser Long userId
+    ) {
+        PersonalRoomListResult result = studyRoomService.getPersonalRooms(userId);
+        PersonalRoomListResponse response = PersonalRoomListResponse.from(result);
+        return ResponseEntity.ok(response);
     }
 }
