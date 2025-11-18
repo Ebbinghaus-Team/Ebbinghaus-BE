@@ -7,6 +7,8 @@ import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
@@ -155,6 +157,41 @@ public class StudyRoomService {
                 .toList();
 
         return new PersonalRoomListResult(roomInfos);
+    }
+
+    /**
+     * 사용자가 속한 그룹 스터디 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public GroupRoomListResult getGroupRooms(Long userId) {
+        User user = findUserById(userId);
+
+        // 활성 멤버십 조회
+        List<StudyRoomMember> memberships = studyRoomMemberRepository.findAllByUserAndActive(user, true);
+
+        // 각 그룹별 문제 수 및 완료 문제 수 집계
+        List<GroupRoomInfo> roomInfos = memberships.stream()
+                .map(member -> {
+                    StudyRoom studyRoom = member.getStudyRoom();
+                    int totalProblems = problemRepository.countByStudyRoom(studyRoom);
+                    int graduatedProblems = problemReviewStateRepository.countByUserAndProblem_StudyRoomAndGate(
+                            user, studyRoom, ReviewGate.GRADUATED
+                    );
+
+                    return new GroupRoomInfo(
+                            studyRoom.getStudyRoomId(),
+                            studyRoom.getName(),
+                            studyRoom.getCategory(),
+                            studyRoom.getDescription(),
+                            studyRoom.getJoinCode(),
+                            totalProblems,
+                            graduatedProblems,
+                            member.getCreatedAt() // 참여일
+                    );
+                })
+                .toList();
+
+        return new GroupRoomListResult(roomInfos);
     }
 
     /**

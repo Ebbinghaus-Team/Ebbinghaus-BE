@@ -2,6 +2,7 @@ package com.ebbinghaus.ttopullae.studyroom.presentation;
 
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
@@ -9,6 +10,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateReques
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
@@ -93,6 +95,21 @@ public class StudyRoomController implements StudyRoomControllerDocs {
     ) {
         PersonalRoomListResult result = studyRoomService.getPersonalRooms(userId);
         PersonalRoomListResponse response = PersonalRoomListResponse.from(result);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 사용자가 속한 그룹 스터디 목록을 조회합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @return 그룹 스터디 목록 (문제 수, 완료 문제 수 포함)
+     */
+    @GetMapping("/group")
+    public ResponseEntity<GroupRoomListResponse> getGroupRooms(
+            @LoginUser Long userId
+    ) {
+        GroupRoomListResult result = studyRoomService.getGroupRooms(userId);
+        GroupRoomListResponse response = GroupRoomListResponse.from(result);
         return ResponseEntity.ok(response);
     }
 }
