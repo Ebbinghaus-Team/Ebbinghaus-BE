@@ -2,6 +2,8 @@ package com.ebbinghaus.ttopullae.studyroom.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.global.util.JoinCodeGenerator;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -79,6 +81,39 @@ public class StudyRoomService {
         studyRoomMemberRepository.save(ownerMembership);
 
         return StudyRoomCreateResult.from(savedRoom);
+    }
+
+    /**
+     * 참여 코드로 그룹 스터디에 참여합니다.
+     */
+    @Transactional
+    public GroupRoomJoinResult joinGroupRoom(GroupRoomJoinCommand command) {
+        User user = findUserById(command.userId());
+
+        // 참여 코드로 스터디룸 조회
+        StudyRoom studyRoom = studyRoomRepository.findByJoinCode(command.joinCode())
+                .orElseThrow(() -> new ApplicationException(StudyRoomException.STUDY_ROOM_NOT_FOUND));
+
+        // 그룹방인지 확인
+        if (!studyRoom.isGroupRoom()) {
+            throw new ApplicationException(StudyRoomException.NOT_GROUP_ROOM);
+        }
+
+        // 중복 참여 확인
+        if (studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(user, studyRoom, true)) {
+            throw new ApplicationException(StudyRoomException.ALREADY_JOINED);
+        }
+
+        // StudyRoomMember 생성 및 저장
+        StudyRoomMember member = StudyRoomMember.builder()
+                .user(user)
+                .studyRoom(studyRoom)
+                .active(true)
+                .build();
+
+        StudyRoomMember savedMember = studyRoomMemberRepository.save(member);
+
+        return GroupRoomJoinResult.from(savedMember);
     }
 
     /**

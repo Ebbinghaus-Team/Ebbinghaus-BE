@@ -1,10 +1,13 @@
 package com.ebbinghaus.ttopullae.studyroom.presentation;
 
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import jakarta.validation.Valid;
@@ -55,6 +58,23 @@ public class StudyRoomController implements StudyRoomControllerDocs {
     ) {
         StudyRoomCreateResult result = studyRoomService.createGroupRoom(request.toCommand(userId));
         GroupRoomCreateResponse response = GroupRoomCreateResponse.from(result);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * 참여 코드로 그룹 스터디에 참여합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @param request 그룹 스터디 참여 요청 (참여 코드 포함)
+     * @return 참여한 그룹 스터디 정보
+     */
+    @PostMapping("/group/join")
+    public ResponseEntity<GroupRoomJoinResponse> joinGroupRoom(
+            @LoginUser Long userId,
+            @Valid @RequestBody GroupRoomJoinRequest request
+    ) {
+        GroupRoomJoinResult result = studyRoomService.joinGroupRoom(request.toCommand(userId));
+        GroupRoomJoinResponse response = GroupRoomJoinResponse.from(result);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
