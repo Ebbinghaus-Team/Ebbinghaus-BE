@@ -1,11 +1,13 @@
 package com.ebbinghaus.ttopullae.studyroom.presentation;
 
+import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.global.exception.ErrorResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,7 +24,7 @@ public interface StudyRoomControllerDocs {
 
     @Operation(
             summary = "개인 공부방 생성",
-            description = "새로운 개인 공부방을 생성합니다. 개인 공부방은 소유자 1명만 존재하며, 생성 시 자동으로 소유자가 멤버로 등록됩니다."
+            description = "새로운 개인 공부방을 생성합니다. JWT 쿠키를 통해 인증된 사용자가 자동으로 소유자로 등록됩니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "개인 공부방 생성에 성공한 경우",
@@ -46,44 +48,30 @@ public interface StudyRoomControllerDocs {
             @ApiResponse(responseCode = "400", description = "잘못된 요청",
                     content = @Content(
                             schema = @Schema(implementation = ErrorResponse.class),
-                            examples = {
-                                    @ExampleObject(
-                                            name = "필수 입력값(사용자 ID)을 누락하여 요청한 경우",
-                                            value = """
-                                                    {
-                                                      "title": "유효하지 않은 입력값",
-                                                      "status": 400,
-                                                      "detail": "userId: 사용자 ID는 필수입니다",
-                                                      "instance": "/api/study-rooms/personal"
-                                                    }
-                                                    """
-                                    ),
-
-                                    @ExampleObject(
-                                            name = "필수 입력값(공부방 이름)을 누락하여 요청한 경우",
-                                            value = """
-                                                    {
-                                                      "title": "유효하지 않은 입력값",
-                                                      "status": 400,
-                                                      "detail": "name: 공부방 이름은 필수입니다",
-                                                      "instance": "/api/study-rooms/personal"
-                                                    }
-                                                    """
-                                    )
-                            }
+                            examples = @ExampleObject(
+                                    name = "필수 입력값(공부방 이름)을 누락하여 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "유효하지 않은 입력값",
+                                              "status": 400,
+                                              "detail": "name: 공부방 이름은 필수입니다",
+                                              "instance": "/api/study-rooms/personal"
+                                            }
+                                            """
+                            )
                     )
             ),
 
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 사용자로 요청한 경우",
+            @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(
                             schema = @Schema(implementation = ErrorResponse.class),
                             examples = @ExampleObject(
-                                    name = "존재하지 않는 사용자 ID로 요청",
+                                    name = "JWT 토큰이 없거나 유효하지 않은 경우",
                                     value = """
                                             {
-                                              "title": "사용자를 찾을 수 없음",
-                                              "status": 404,
-                                              "detail": "요청한 ID의 사용자가 존재하지 않습니다.",
+                                              "title": "토큰을 찾을 수 없음",
+                                              "status": 401,
+                                              "detail": "인증 토큰이 제공되지 않았습니다.",
                                               "instance": "/api/study-rooms/personal"
                                             }
                                             """
@@ -93,12 +81,13 @@ public interface StudyRoomControllerDocs {
     })
     @PostMapping("/personal")
     ResponseEntity<PersonalRoomCreateResponse> createPersonalRoom(
+            @Parameter(hidden = true) @LoginUser Long userId,
             @Valid @RequestBody PersonalRoomCreateRequest request
     );
 
     @Operation(
             summary = "그룹 스터디 생성",
-            description = "새로운 그룹 스터디를 생성합니다. 생성 시 고유한 참여 코드가 자동으로 발급되며, 다른 사용자는 이 코드를 통해 그룹 스터디에 참여할 수 있습니다."
+            description = "새로운 그룹 스터디를 생성합니다. JWT 쿠키를 통해 인증된 사용자가 방장으로 자동 등록되며, 고유한 참여 코드가 발급됩니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "그룹 스터디 생성에 성공한 경우",
@@ -123,44 +112,30 @@ public interface StudyRoomControllerDocs {
             @ApiResponse(responseCode = "400", description = "잘못된 요청",
                     content = @Content(
                             schema = @Schema(implementation = ErrorResponse.class),
-                            examples = {
-                                    @ExampleObject(
-                                            name = "필수 입력값(사용자 ID)을 누락하여 요청한 경우",
-                                            value = """
-                                                    {
-                                                      "title": "유효하지 않은 입력값",
-                                                      "status": 400,
-                                                      "detail": "userId: 사용자 ID는 필수입니다",
-                                                      "instance": "/api/study-rooms/group"
-                                                    }
-                                                    """
-                                    ),
-
-                                    @ExampleObject(
-                                            name = "필수 입력값(그룹 스터디 이름)을 누락하여 요청한 경우",
-                                            value = """
-                                                    {
-                                                      "title": "유효하지 않은 입력값",
-                                                      "status": 400,
-                                                      "detail": "name: 그룹 스터디 이름은 필수입니다",
-                                                      "instance": "/api/study-rooms/group"
-                                                    }
-                                                    """
-                                    )
-                            }
+                            examples = @ExampleObject(
+                                    name = "필수 입력값(그룹 스터디 이름)을 누락하여 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "유효하지 않은 입력값",
+                                              "status": 400,
+                                              "detail": "name: 그룹 스터디 이름은 필수입니다",
+                                              "instance": "/api/study-rooms/group"
+                                            }
+                                            """
+                            )
                     )
             ),
 
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 사용자로 요청한 경우",
+            @ApiResponse(responseCode = "401", description = "인증 실패",
                     content = @Content(
                             schema = @Schema(implementation = ErrorResponse.class),
                             examples = @ExampleObject(
-                                    name = "존재하지 않는 사용자 ID로 요청",
+                                    name = "JWT 토큰이 없거나 유효하지 않은 경우",
                                     value = """
                                             {
-                                              "title": "사용자를 찾을 수 없음",
-                                              "status": 404,
-                                              "detail": "요청한 ID의 사용자가 존재하지 않습니다.",
+                                              "title": "토큰을 찾을 수 없음",
+                                              "status": 401,
+                                              "detail": "인증 토큰이 제공되지 않았습니다.",
                                               "instance": "/api/study-rooms/group"
                                             }
                                             """
@@ -187,6 +162,7 @@ public interface StudyRoomControllerDocs {
     })
     @PostMapping("/group")
     ResponseEntity<GroupRoomCreateResponse> createGroupRoom(
+            @Parameter(hidden = true) @LoginUser Long userId,
             @Valid @RequestBody GroupRoomCreateRequest request
     );
 }

@@ -115,6 +115,10 @@ com.ebbinghaus.ttopullae/
 - [구글 자바 스타일 가이드](https://google.github.io/styleguide/javaguide.html) 를 컨벤션으로 한다.
 - 축약어를 쓰지 않고, 네이밍을 보고도 어떤 역할을 하는지 쉽게 알 수 있어야 한다.
 - 가독성이 좋은 코드를 작성한다.
+- 하나의 메서드에 모든 로직을 몰아넣지 않는다.  
+  메서드는 단일 책임을 가지도록 구성하고, 복잡해지기 시작하면 과감히 분리한다.
+- 메서드는 이름(네이밍), 파라미터, 반환 타입만 보아도 어떤 역할을 수행하는지 이해할 수 있어야 한다.  
+  즉, 시그니처 자체가 메서드의 의도를 명확하게 드러내야 한다.
 - 복잡한 기능이 있다면 한글로 짧막한 주석을 추가한다.
 - DTO는 `record` 를 사용한다.
 - **DTO 네이밍 규칙**은 다음의 데이터 흐름을 따른다:
@@ -130,6 +134,8 @@ com.ebbinghaus.ttopullae/
 - 깃 컨벤션은 'Conventional Commits' 를 따른다.
 - 커밋 메세지는 한글로 작성한다.
 - 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
+- 커밋이 특정 이슈를 해결하거나 관련된 작업을 포함하는 경우, 커밋 메시지 제목 끝에 해당 이슈 번호를 `[#[번호]]` 형식으로 명시한다.
+  - 예: "feat: 로그인 인터셉터 구현 [#12]"
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
 
 ### 5.2.1 브랜치 전략 (Branch Strategy)
@@ -322,7 +328,8 @@ public void sendEmail(String to, String subject) {
 
 ### 5.5. API 문서화 (Swagger)
 
-- API 스펙 문서화는 Swagger를 사용한다.
+- API 스펙 문서화는 Swagger를 사용
+- 각 Controller의 Swagger 문서는 xxxControllerDocs 인터페이스로 분리하여 관리한다.
 - Swagger 작성 가이드라인은 `docs/SWAGGER.md` 참고
 - API에 대한 구체적인 설명은 `docs/API_SPEC.md`에 작성
 
@@ -407,24 +414,26 @@ docker logs mysql-server
 - **SWAGGER**: `docs/SWAGGER.md` - swagger API 문서화 요령을 담은 문서 
 
 -----
+## 10. 인증 / 인가
 
-## 10\. MVP 제한사항 및 임시 구현
+> 본 서비스는 쿠키 기반 JWT 인증 방식을 사용한다.
+로그인 시 발급된 Access Token은 HttpOnly 쿠키에 저장되며, 모든 요청에서 자동으로 인증이 수행된다.
 
-### 10.1. 인증/인가 (Authentication/Authorization)
+### 10.1 인증 방식 개요
 
-현재 MVP 단계에서는 인증 시스템이 구현되지 않았습니다.
+1. 로그인 성공 → JWT Access Token 생성
+2. Access Token을 HttpOnly 쿠키(accessToken)로 클라이언트에 전달
+3. 이후 API 요청 시 브라우저가 쿠키를 자동 전송
+3. 인터셉터가 토큰 검증
+4. 검증된 userId를 컨트롤러에 자동 주입(@LoginUser 와 ArgumentResolver)
 
-**임시 인증 방식:**
-- 모든 로그인 사용자의 정보가 필요한 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
-- 예시: `{"userId": 1, "name": "스터디방", "description": "자바 스터디"}`
+### 10.2 JWT Payload
 
-**코드 작성 시 주의사항:**
-- Request DTO의 `userId` 필드에 명확한 주석 추가:
-  ```java
-  // TODO: [인증 구현 후 제거] 임시로 Request Body에서 사용자 식별
-  @NotNull(message = "사용자 ID는 필수입니다")
-  Long userId;
-  ```
-- Service 계층에서는 userId를 파라미터로 받아 User 엔티티를 조회하는 방식 사용
-
-
+[예시]
+```json
+{
+  "userId": 1,
+  "exp": 1700000000
+}
+```
+- JWT 토큰의 페이로드에는 유저 아이디가 포함된다. 
