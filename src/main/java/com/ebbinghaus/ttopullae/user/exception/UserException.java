@@ -11,8 +11,8 @@ public enum UserException implements ExceptionCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이메일 중복", "이미 사용 중인 이메일입니다."),
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "잘못된 비밀번호", "비밀번호가 일치하지 않습니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰", "토큰이 유효하지 않습니다."),
-    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰", "토큰이 만료되었습니다."),
-    TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "토큰을 찾을 수 없음", "인증 토큰이 제공되지 않았습니다.");
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "로그인 만료", "인증 정보가 만료되었습니다. 다시 로그인 해 주세요."),
+    TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "인증되지 않은 요청", "로그인이 필요합니다.");
 
     private final HttpStatus httpStatus;
     private final String title;

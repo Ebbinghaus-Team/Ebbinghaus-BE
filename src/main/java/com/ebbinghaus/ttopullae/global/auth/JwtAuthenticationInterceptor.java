@@ -32,11 +32,6 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
         // 쿠키에서 JWT 토큰 추출
         String token = CookieUtil.extractToken(request.getCookies());
 
-        if (token == null) {
-            log.error("인증 토큰이 제공되지 않았습니다. URI: {}", request.getRequestURI());
-            throw new ApplicationException(UserException.TOKEN_NOT_FOUND);
-        }
-
         // 토큰 유효성 검증 (예외 발생 시 GlobalExceptionHandler에서 처리)
         jwtTokenProvider.validateToken(token);
 

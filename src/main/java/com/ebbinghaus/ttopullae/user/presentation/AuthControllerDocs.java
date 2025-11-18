@@ -100,8 +100,7 @@ public interface AuthControllerDocs {
                                             {
                                               "userId": 1,
                                               "email": "user@example.com",
-                                              "username": "홍길동",
-                                              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                              "username": "홍길동"
                                             }
                                             """
                             )

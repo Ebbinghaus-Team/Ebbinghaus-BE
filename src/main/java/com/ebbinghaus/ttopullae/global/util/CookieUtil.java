@@ -1,7 +1,10 @@
 package com.ebbinghaus.ttopullae.global.util;
 
+import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
+import com.ebbinghaus.ttopullae.user.exception.UserException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.ResponseCookie;
 
 /**
  * 쿠키 관련 유틸리티 클래스
@@ -18,14 +21,16 @@ public class CookieUtil {
      * @param response HTTP 응답 객체
      */
     public static void setToken(String accessToken, int cookieExpirationSeconds, HttpServletResponse response) {
-        Cookie cookie = new Cookie(TOKEN_COOKIE_NAME, accessToken);
-        cookie.setHttpOnly(true); // XSS 공격 방지
-        cookie.setSecure(false); // HTTPS 환경에서만 전송 (개발 환경에서는 false)
-        cookie.setPath("/"); // 모든 경로에서 쿠키 접근 가능
-        cookie.setMaxAge(cookieExpirationSeconds); // 쿠키 만료 시간 설정
-        cookie.setAttribute("SameSite", "None"); // CSRF 방지 (개발 환경 호환성)
 
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from(TOKEN_COOKIE_NAME, accessToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(cookieExpirationSeconds)
+                .sameSite("None")   // Lux 로 변경
+                .build();
+
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 
     /**
@@ -35,7 +40,7 @@ public class CookieUtil {
      */
     public static String extractToken(Cookie[] cookies) {
         if (cookies == null) {
-            return null;
+            throw new ApplicationException(UserException.TOKEN_NOT_FOUND);
         }
 
         for (Cookie cookie : cookies) {
@@ -44,7 +49,7 @@ public class CookieUtil {
             }
         }
 
-        return null;
+        throw new ApplicationException(UserException.TOKEN_NOT_FOUND);
     }
 
     /**
@@ -52,13 +57,14 @@ public class CookieUtil {
      * @param response HTTP 응답 객체
      */
     public static void deleteCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie(TOKEN_COOKIE_NAME, null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false);
-        cookie.setPath("/");
-        cookie.setMaxAge(0); // 즉시 만료
-        cookie.setAttribute("SameSite", "None");
+        ResponseCookie cookie = ResponseCookie.from(TOKEN_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("None")
+                .build();
 
-        response.addCookie(cookie);
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }

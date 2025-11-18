@@ -16,17 +16,13 @@ public record LoginResponse(
         String email,
 
         @Schema(description = "사용자 이름", example = "홍길동")
-        String username,
-
-        @Schema(description = "JWT 액세스 토큰 (쿠키에도 설정됨)", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-        String accessToken
+        String username
 ) {
     public static LoginResponse from(LoginResult result) {
         return new LoginResponse(
                 result.userId(),
                 result.email(),
-                result.username(),
-                result.accessToken()
+                result.username()
         );
     }
 }

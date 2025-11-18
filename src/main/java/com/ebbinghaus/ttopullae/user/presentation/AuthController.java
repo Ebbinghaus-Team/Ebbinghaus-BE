@@ -58,10 +58,7 @@ public class AuthController implements AuthControllerDocs {
             HttpServletResponse httpResponse
     ) {
         LoginResult result = authService.login(request.toCommand());
-
-        // JWT 토큰을 HttpOnly 쿠키에 저장
         CookieUtil.setToken(result.accessToken(), cookieExpirationSeconds, httpResponse);
-
         LoginResponse response = LoginResponse.from(result);
         return ResponseEntity.ok(response);
     }
@@ -74,7 +71,6 @@ public class AuthController implements AuthControllerDocs {
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse httpResponse) {
-        // 쿠키에서 JWT 토큰 삭제
         CookieUtil.deleteCookie(httpResponse);
         return ResponseEntity.ok().build();
     }
