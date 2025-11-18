@@ -16,6 +16,12 @@ spring:
       hibernate:
         format_sql: true
 
+# JWT 설정
+jwt:
+  secret-key: ebbinghaus-ttopullae-secret-key-for-jwt-token-generation-and-validation-2025
+  token-expiration-seconds: 86400  # 1일 (24시간)
+  cookie-expiration-seconds: 86400  # 1일 (24시간)
+
 springdoc:
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
