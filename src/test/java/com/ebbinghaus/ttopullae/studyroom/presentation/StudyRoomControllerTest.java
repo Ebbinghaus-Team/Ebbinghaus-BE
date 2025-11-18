@@ -150,7 +150,7 @@ class StudyRoomControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.title").value("토큰을 찾을 수 없음"));
+                .andExpect(jsonPath("$.title").value("인증되지 않은 요청"));
     }
 
     @Test

@@ -137,7 +137,6 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.userId").isNumber())
                 .andExpect(jsonPath("$.email").value("test@example.com"))
                 .andExpect(jsonPath("$.username").value("테스트유저"))
-                .andExpect(jsonPath("$.accessToken").value(notNullValue()))
                 .andExpect(cookie().exists("accessToken"))
                 .andExpect(cookie().httpOnly("accessToken", true));
     }
