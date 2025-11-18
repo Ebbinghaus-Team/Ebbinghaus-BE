@@ -29,6 +29,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/api/auth/signup",  // 회원가입은 인증 불필요
                         "/api/auth/login",   // 로그인은 인증 불필요
+                        "/api/auth/logout",  // 로그아웃은 인증 불필요 (쿠키만 삭제)
                         "/docs/**",          // Swagger 문서는 인증 불필요
                         "/swagger-ui/**",    // Swagger UI는 인증 불필요
                         "/v3/api-docs/**"    // OpenAPI 문서는 인증 불필요
