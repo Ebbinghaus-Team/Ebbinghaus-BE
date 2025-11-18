@@ -4,7 +4,8 @@
       "Bash(find:*)",
       "Bash(./gradlew clean build:*)",
       "Bash(chmod:*)",
-      "Bash(docker-compose ps:*)"
+      "Bash(docker-compose ps:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []

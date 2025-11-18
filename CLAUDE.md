@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-이 파일은 Claude Code(claude.ai/code)가 이 리포지토리의 코드로 작업할 때 참고할 수 있는 가이드를 제공합니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## 1\. 프로젝트 개요
 
@@ -312,11 +312,23 @@ public void sendEmail(String to, String subject) {
 - `ApplicationException`과 `InfrastructureException`을 상황에 맞게 구분하여 사용
 - 예외 로깅은 `GlobalExceptionHandler`에서 자동으로 처리됨 (별도 로깅 불필요)
 
-### 5.4. 그 외
+### 5.4. 테스트 작성 규칙
 
 - 개발 구현 완료 되면 테스트 코드를 작성하여 구현한 기능이 제대로 동작하는지 확인한다.
-- 외부 API에 의존하는 기능에 대한 테스트의 경우, 외부 API를 Mocking 하여 테스트를 진행한다.
-- 모든 엔티티는 `BaseTimeEntity`를 상속하여 생성 시간을 관리한다.
+- **단위 테스트**: 서비스 로직은 Mockito를 사용한 단위 테스트로 검증한다.
+- **통합 테스트**: API는 `@SpringBootTest` + `MockMvc`를 사용한 통합 테스트로 검증한다.
+- 외부 API에 의존하는 기능의 경우, 외부 API를 Mocking하여 테스트를 진행한다.
+- 모든 테스트는 **Given/When/Then 패턴**을 적용한다.
+
+### 5.5. API 문서화 (Swagger)
+
+- API 스펙 문서화는 Swagger를 사용한다.
+- Swagger 작성 가이드라인은 `docs/SWAGGER.md` 참고
+- API에 대한 구체적인 설명은 `docs/API_SPEC.md`에 작성
+
+### 5.6. 엔티티 공통 규칙
+
+- 모든 엔티티는 `BaseTimeEntity`를 상속하여 `createdAt` 자동 추적
 
 -----
 
@@ -331,24 +343,40 @@ public void sendEmail(String to, String subject) {
 # 프로젝트 빌드
 ./gradlew build
 
-# 테스트 실행
+# 테스트 스킵하고 빠른 빌드 (개발 중 빠른 확인용)
+./gradlew build -x test
+
+# 빌드 산출물 정리 후 새로 빌드
+./gradlew clean build
+```
+
+### 6.2. 테스트 실행
+
+```bash
+# 전체 테스트 실행
 ./gradlew test
 
 # 특정 테스트 클래스 실행
-./gradlew test --tests com.ebbinghaus.ttopullae.TtopullaeApplicationTests
+./gradlew test --tests com.ebbinghaus.ttopullae.studyroom.presentation.StudyRoomControllerTest
 
-# 빌드 산출물 정리
-./gradlew clean
+# 특정 테스트 메서드 실행
+./gradlew test --tests com.ebbinghaus.ttopullae.studyroom.application.StudyRoomServiceTest.createPersonalRoom_Success
+
+# 특정 패키지의 모든 테스트 실행
+./gradlew test --tests "com.ebbinghaus.ttopullae.studyroom.*"
+
+# 테스트 결과를 계속 확인하며 실행 (continuous mode)
+./gradlew test --continuous
 ```
 
-### 6.2. 도커 (Docker)
+### 6.3. 도커 (Docker)
 
 ```bash
 # MySQL 데이터베이스 시작 (개발용)
-docker-compose up -d
+docker compose up -d
 
 # MySQL 데이터베이스 중지
-docker-compose down
+docker compose down
 
 # MySQL 로그 보기
 docker logs mysql-server
@@ -375,6 +403,8 @@ docker logs mysql-server
 ## 9\. 문서
 
 - **PRD**: `docs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
+- **TABLE**: `docs/TABLE.md` - 테이블 설계 문서
+- **SWAGGER**: `docs/SWAGGER.md` - swagger API 문서화 요령을 담은 문서 
 
 -----
 
@@ -382,17 +412,11 @@ docker logs mysql-server
 
 ### 10.1. 인증/인가 (Authentication/Authorization)
 
-현재 MVP 단계에서는 Spring Security 기반 인증 시스템이 구현되지 않았습니다.
+현재 MVP 단계에서는 인증 시스템이 구현되지 않았습니다.
 
 **임시 인증 방식:**
-- 모든 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
+- 모든 로그인 사용자의 정보가 필요한 API 요청의 Request Body에 `userId` 필드를 포함하여 사용자를 식별합니다.
 - 예시: `{"userId": 1, "name": "스터디방", "description": "자바 스터디"}`
-
-**향후 마이그레이션 계획:**
-- Spring Security + JWT 인증 구현 후:
-  1. Request DTO에서 `userId` 필드 제거
-  2. `SecurityContext`에서 인증된 사용자 정보 추출
-  3. Controller 메서드에 `@AuthenticationPrincipal` 적용
 
 **코드 작성 시 주의사항:**
 - Request DTO의 `userId` 필드에 명확한 주석 추가:
@@ -402,5 +426,5 @@ docker logs mysql-server
   Long userId;
   ```
 - Service 계층에서는 userId를 파라미터로 받아 User 엔티티를 조회하는 방식 사용
-- 향후 `UserService.getCurrentUser()` 같은 메서드로 교체 가능하도록 설계
+
 
