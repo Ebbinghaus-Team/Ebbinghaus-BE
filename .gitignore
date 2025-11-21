@@ -44,3 +44,6 @@ out/
 
 ### Log files ###
 /logs/
+
+### Personal files ###
+prompt_plan.md
