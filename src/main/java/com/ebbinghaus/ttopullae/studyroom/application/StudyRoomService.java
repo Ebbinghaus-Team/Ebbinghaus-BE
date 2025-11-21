@@ -2,6 +2,15 @@ package com.ebbinghaus.ttopullae.studyroom.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.global.util.JoinCodeGenerator;
+import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -13,6 +22,7 @@ import com.ebbinghaus.ttopullae.studyroom.exception.StudyRoomException;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
 import com.ebbinghaus.ttopullae.user.exception.UserException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +36,8 @@ public class StudyRoomService {
     private final StudyRoomRepository studyRoomRepository;
     private final StudyRoomMemberRepository studyRoomMemberRepository;
     private final UserRepository userRepository;
+    private final ProblemRepository problemRepository;
+    private final ProblemReviewStateRepository problemReviewStateRepository;
 
     /**
      * 개인 공부방을 생성합니다.
@@ -79,6 +91,107 @@ public class StudyRoomService {
         studyRoomMemberRepository.save(ownerMembership);
 
         return StudyRoomCreateResult.from(savedRoom);
+    }
+
+    /**
+     * 참여 코드로 그룹 스터디에 참여합니다.
+     */
+    @Transactional
+    public GroupRoomJoinResult joinGroupRoom(GroupRoomJoinCommand command) {
+        User user = findUserById(command.userId());
+
+        // 참여 코드로 스터디룸 조회
+        StudyRoom studyRoom = studyRoomRepository.findByJoinCode(command.joinCode())
+                .orElseThrow(() -> new ApplicationException(StudyRoomException.STUDY_ROOM_NOT_FOUND));
+
+        // 그룹방인지 확인
+        if (!studyRoom.isGroupRoom()) {
+            throw new ApplicationException(StudyRoomException.NOT_GROUP_ROOM);
+        }
+
+        // 중복 참여 확인
+        if (studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(user, studyRoom, true)) {
+            throw new ApplicationException(StudyRoomException.ALREADY_JOINED);
+        }
+
+        // StudyRoomMember 생성 및 저장
+        StudyRoomMember member = StudyRoomMember.builder()
+                .user(user)
+                .studyRoom(studyRoom)
+                .active(true)
+                .build();
+
+        StudyRoomMember savedMember = studyRoomMemberRepository.save(member);
+
+        return GroupRoomJoinResult.from(savedMember);
+    }
+
+    /**
+     * 사용자의 개인 공부방 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public PersonalRoomListResult getPersonalRooms(Long userId) {
+        User user = findUserById(userId);
+
+        // 개인방 목록 조회
+        List<StudyRoom> personalRooms = studyRoomRepository.findAllByOwnerAndRoomType(user, RoomType.PERSONAL);
+
+        // 각 방별 문제 수 및 완료 문제 수 집계
+        List<PersonalRoomInfo> roomInfos = personalRooms.stream()
+                .map(studyRoom -> {
+                    int totalProblems = problemRepository.countByStudyRoom(studyRoom);
+                    int graduatedProblems = problemReviewStateRepository.countByUserAndProblem_StudyRoomAndGate(
+                            user, studyRoom, ReviewGate.GRADUATED
+                    );
+
+                    return new PersonalRoomInfo(
+                            studyRoom.getStudyRoomId(),
+                            studyRoom.getName(),
+                            studyRoom.getCategory(),
+                            studyRoom.getDescription(),
+                            totalProblems,
+                            graduatedProblems,
+                            studyRoom.getCreatedAt()
+                    );
+                })
+                .toList();
+
+        return new PersonalRoomListResult(roomInfos);
+    }
+
+    /**
+     * 사용자가 속한 그룹 스터디 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public GroupRoomListResult getGroupRooms(Long userId) {
+        User user = findUserById(userId);
+
+        // 활성 멤버십 조회
+        List<StudyRoomMember> memberships = studyRoomMemberRepository.findAllByUserAndActive(user, true);
+
+        // 각 그룹별 문제 수 및 완료 문제 수 집계
+        List<GroupRoomInfo> roomInfos = memberships.stream()
+                .map(member -> {
+                    StudyRoom studyRoom = member.getStudyRoom();
+                    int totalProblems = problemRepository.countByStudyRoom(studyRoom);
+                    int graduatedProblems = problemReviewStateRepository.countByUserAndProblem_StudyRoomAndGate(
+                            user, studyRoom, ReviewGate.GRADUATED
+                    );
+
+                    return new GroupRoomInfo(
+                            studyRoom.getStudyRoomId(),
+                            studyRoom.getName(),
+                            studyRoom.getCategory(),
+                            studyRoom.getDescription(),
+                            studyRoom.getJoinCode(),
+                            totalProblems,
+                            graduatedProblems,
+                            member.getCreatedAt() // 참여일
+                    );
+                })
+                .toList();
+
+        return new GroupRoomListResult(roomInfos);
     }
 
     /**
