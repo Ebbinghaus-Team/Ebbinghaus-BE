@@ -8,7 +8,8 @@
       "Bash(gh api:*)",
       "Bash(gh issue view:*)",
       "Bash(./gradlew test:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(gh auth login:*)"
     ],
     "deny": [],
     "ask": []
