@@ -136,6 +136,9 @@ com.ebbinghaus.ttopullae/
 - 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
 - 커밋이 특정 이슈를 해결하거나 관련된 작업을 포함하는 경우, 커밋 메시지 제목 끝에 해당 이슈 번호를 `[#[번호]]` 형식으로 명시한다.
   - 예: "feat: 로그인 인터셉터 구현 [#12]"
+- **커밋 메시지에 AI 도구(Claude Code 등) 관련 내용을 포함하지 않는다.**
+  - `🤖 Generated with [Claude Code]`, `Co-Authored-By: Claude` 등의 문구를 절대 추가하지 않는다.
+  - 커밋 기록은 오직 개발자의 작업 내역만 명확히 나타내야 한다.
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
 
 #### Issue/PR 생성 규칙
