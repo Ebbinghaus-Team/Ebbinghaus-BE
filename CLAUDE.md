@@ -138,6 +138,13 @@ com.ebbinghaus.ttopullae/
   - 예: "feat: 로그인 인터셉터 구현 [#12]"
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
 
+#### Issue/PR 생성 규칙
+
+- **할당자 (Assignee)**: Issue 또는 PR을 생성한 본인을 할당자로 지정한다.
+- **리뷰어 (Reviewer)**: PR 생성 시 팀원을 리뷰어로 지정한다. 팀은 총 2명이므로, HyerimH가 작성한 경우 chxghee를, chxghee가 작성한 경우 HyerimH를 리뷰어로 지정한다.
+- **라벨 (Labels)**: Issue 및 PR 생성 시 `.github/labels.json`에 정의된 라벨을 참고하여 작업 내용에 적합한 라벨을 반드시 부착한다.
+  - 예: 기능 개발 시 "✨ Feature", API 작업 시 "📬 API", 문서 작업 시 "📃 Docs" 등
+
 ### 5.2.1 브랜치 전략 (Branch Strategy)
 
 본 프로젝트는 개발자별 작업 분리를 명확히 하고 브랜치 히스토리를 안정적으로 추적하기 위해  
