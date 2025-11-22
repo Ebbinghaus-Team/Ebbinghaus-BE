@@ -136,7 +136,17 @@ com.ebbinghaus.ttopullae/
 - 구현한 기능을 한번에 커밋하지 않고 단계별로 끊어서 커밋한다.
 - 커밋이 특정 이슈를 해결하거나 관련된 작업을 포함하는 경우, 커밋 메시지 제목 끝에 해당 이슈 번호를 `[#[번호]]` 형식으로 명시한다.
   - 예: "feat: 로그인 인터셉터 구현 [#12]"
+- **커밋 메시지에 AI 도구(Claude Code 등) 관련 내용을 포함하지 않는다.**
+  - `🤖 Generated with [Claude Code]`, `Co-Authored-By: Claude` 등의 문구를 절대 추가하지 않는다.
+  - 커밋 기록은 오직 개발자의 작업 내역만 명확히 나타내야 한다.
 - PR을 작성할 떄는 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`)을 활용한다.
+
+#### Issue/PR 생성 규칙
+
+- **할당자 (Assignee)**: Issue 또는 PR을 생성한 본인을 할당자로 지정한다.
+- **리뷰어 (Reviewer)**: PR 생성 시 팀원을 리뷰어로 지정한다. 팀은 총 2명이므로, HyerimH가 작성한 경우 chxghee를, chxghee가 작성한 경우 HyerimH를 리뷰어로 지정한다.
+- **라벨 (Labels)**: Issue 및 PR 생성 시 `.github/labels.json`에 정의된 라벨을 참고하여 작업 내용에 적합한 라벨을 반드시 부착한다.
+  - 예: 기능 개발 시 "✨ Feature", API 작업 시 "📬 API", 문서 작업 시 "📃 Docs" 등
 
 ### 5.2.1 브랜치 전략 (Branch Strategy)
 

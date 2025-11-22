@@ -1,12 +1,12 @@
 spring:
   application:
-    name: ttopullae-test
+    name: ttopullae
 
   datasource:
     url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
     username: sa
     password:
-    driver-class-name: org.h2.Driver
 
   jpa:
     hibernate:
@@ -14,11 +14,19 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
-    show-sql: true
 
-# JWT 설정 (테스트용)
+# JWT 설정
 jwt:
-  secret-key: test-secret-key-for-jwt-token-generation-and-validation-in-test-environment-2025
-  token-expiration-seconds: 86400  # 1일 (24시간)
-  cookie-expiration-seconds: 86400  # 1일 (24시간)
+  secret-key: test-secret-key-for-jwt-token-generation-and-validation
+  token-expiration-seconds: 86400
+  cookie-expiration-seconds: 86400
+
+# OpenAI 설정 (테스트용)
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4o-mini
+  api-url: https://api.openai.com/v1/chat/completions
+
+springdoc:
+  default-consumes-media-type: application/json;charset=UTF-8
+  default-produces-media-type: application/json;charset=UTF-8

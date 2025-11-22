@@ -13,6 +13,7 @@
 2. [개인 공부방 생성 API](#2-개인-공부방-생성-api)
 3. [그룹 스터디 생성 API](#3-그룹-스터디-생성-api)
 4. [문제 생성 API](#4-문제-생성-api)
+5. [AI 채점 테스트 API](#5-ai-채점-테스트-api)
 
 ---
 
@@ -829,3 +830,170 @@ Cookie: accessToken={JWT_TOKEN}
 **주의사항**:
 - 필수 데이터 검증은 애플리케이션 레이어에서 수행
 - 클라이언트는 문제 유형에 맞는 필드만 전송해야 함
+
+---
+
+## 5. AI 채점 테스트 API
+
+### 5.1. 기본 정보
+
+- **Endpoint**: `POST /api/grading/test`
+- **설명**: 서술형 답안에 대한 AI 자동 채점 기능을 테스트합니다. OpenAI GPT-4o-mini 모델을 사용하여 사용자 답안을 모범 답안 및 핵심 키워드와 비교하여 채점하고 피드백을 제공합니다.
+- **인증**: 필요 (JWT 쿠키)
+- **용도**: 개발 및 테스트 목적
+
+### 5.2. Request
+
+#### 5.2.1. Headers
+
+```
+Content-Type: application/json
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### 5.2.2. Body
+
+| 필드 | 타입 | 필수 | 설명 | 예시 |
+|------|------|------|------|------|
+| topic | String | O | 주제 | "Spring Framework" |
+| question | String | O | 문제 | "IoC(Inversion of Control)란 무엇인가?" |
+| modelAnswer | String | O | 모범 답안 | "제어의 역전으로, 객체의 생성과 관리를 개발자가 아닌 스프링 컨테이너가 담당하는 것을 의미합니다." |
+| keywords | List\<String\> | O | 핵심 키워드 리스트 (최소 1개) | ["제어의 역전", "컨테이너"] |
+| userAnswer | String | O | 사용자 답안 | "제어의 역전이며, 스프링 컨테이너가 객체를 관리합니다." |
+
+#### 5.2.3. Request Example
+
+```json
+{
+  "topic": "Spring Framework",
+  "question": "IoC(Inversion of Control)란 무엇인가?",
+  "modelAnswer": "제어의 역전으로, 객체의 생성과 관리를 개발자가 아닌 스프링 컨테이너가 담당하는 것을 의미합니다.",
+  "keywords": ["제어의 역전", "컨테이너"],
+  "userAnswer": "제어의 역전이며, 스프링 컨테이너가 객체를 관리합니다."
+}
+```
+
+### 5.3. Response
+
+#### 5.3.1. Success Response (200 OK)
+
+##### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| isCorrect | Boolean | 정답 여부 | true |
+| feedback | String | 피드백 메시지 | "정답입니다. '제어의 역전'의 개념과 '컨테이너'의 역할이 정확하게 설명되었습니다." |
+| missingKeywords | List\<String\> | 누락된 키워드 리스트 | [] |
+| scoringReason | String | 채점 근거 | "모든 핵심 키워드가 의미적으로 포함되었으며, 모범 답안의 핵심 내용과 일치합니다." |
+
+##### Response Example (정답)
+
+```json
+{
+  "isCorrect": true,
+  "feedback": "정답입니다. '제어의 역전'의 개념과 '컨테이너'의 역할이 정확하게 설명되었습니다.",
+  "missingKeywords": [],
+  "scoringReason": "모든 핵심 키워드가 의미적으로 포함되었으며, 모범 답안의 핵심 내용과 일치합니다."
+}
+```
+
+##### Response Example (오답)
+
+```json
+{
+  "isCorrect": false,
+  "feedback": "핵심 개념인 '제어의 역전'에 대한 설명이 누락되었습니다. 현재 답안은 '컨테이너'의 역할에 초점을 맞추고 있지만, '누가 제어의 주체인지'가 바뀌는 점이 포함되어야 합니다.",
+  "missingKeywords": ["제어의 역전"],
+  "scoringReason": "'제어의 역전' 개념이 누락되었습니다. '컨테이너'의 역할은 올바르게 설명되었습니다."
+}
+```
+
+#### 5.3.2. Error Responses
+
+##### 400 Bad Request - 필수 입력값 누락
+
+```json
+{
+  "title": "유효하지 않은 입력값",
+  "status": 400,
+  "detail": "question: 문제는 필수입니다",
+  "instance": "/api/grading/test"
+}
+```
+
+##### 400 Bad Request - 키워드 리스트 비어있음
+
+```json
+{
+  "title": "유효하지 않은 입력값",
+  "status": 400,
+  "detail": "keywords: 최소 1개 이상의 키워드가 필요합니다",
+  "instance": "/api/grading/test"
+}
+```
+
+##### 401 Unauthorized - 인증 실패
+
+```json
+{
+  "title": "토큰을 찾을 수 없음",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/grading/test"
+}
+```
+
+##### 500 Internal Server Error - AI 서비스 오류
+
+```json
+{
+  "title": "서버 내부 오류",
+  "status": 500,
+  "detail": "AI 채점 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+  "instance": "/api/grading/test"
+}
+```
+
+### 5.4. 비즈니스 로직
+
+1. **인증 검증**
+   - JWT 쿠키에서 사용자 ID 추출
+   - 유효하지 않은 토큰인 경우 401 에러 반환
+
+2. **입력값 검증**
+   - 모든 필수 필드 존재 여부 확인
+   - `keywords` 리스트가 비어있지 않은지 확인
+   - 검증 실패 시 400 에러 반환
+
+3. **프롬프트 생성**
+   - `src/main/resources/prompts/grading_system_prompt.txt` 템플릿 로드
+   - `{{TOPIC}}`, `{{QUESTION}}`, `{{MODEL_ANSWER}}`, `{{KEYWORDS_LIST}}`, `{{USER_ANSWER}}` 변수 치환
+
+4. **AI 채점 요청**
+   - OpenAI API (`gpt-4o-mini` 모델) 호출
+   - JSON 모드(`response_format: { "type": "json_object" }`) 사용
+   - 타임아웃 또는 API 오류 시 Graceful Degradation 적용
+
+5. **응답 파싱**
+   - AI가 반환한 JSON을 `AiGradingResult`로 변환
+   - `isCorrect`, `feedback`, `missingKeywords`, `scoringReason` 필드 추출
+
+6. **결과 반환**
+   - 클라이언트에 채점 결과 전달
+
+### 5.5. AI 채점 기준
+
+AI는 다음 기준에 따라 답안을 채점합니다:
+
+1. **정확성**: 사용자 답안이 모범 답안의 핵심 의미와 일치하며, 사실적 오류가 없어야 함
+2. **키워드 포함**: 핵심 키워드 리스트의 모든 개념이 사용자 답안에 의미적으로 포함되어야 함
+   - 단순히 단어가 존재하는지가 아니라, 해당 키워드의 개념과 맥락이 올바르게 설명되었는지 판단
+3. **판정**: 1번과 2번 기준을 모두 충족할 경우에만 `isCorrect` 값이 `true`
+
+### 5.6. 주의사항
+
+- **개발/테스트 전용**: 이 API는 AI 채점 기능을 테스트하기 위한 용도로, 실제 문제 풀이 시나리오에서는 별도의 답안 제출 API를 통해 자동 채점이 이루어집니다.
+- **API 키 필요**: 실제 OpenAI API를 호출하므로 `.env` 파일에 `OPENAI_API_KEY` 설정이 필요합니다.
+- **비용 발생**: OpenAI API 호출 시 비용이 발생할 수 있습니다.
+- **응답 시간**: AI 모델 호출로 인해 응답 시간이 일반 API보다 길 수 있습니다 (보통 2-5초).
+- **외부 지식 금지**: AI는 오직 제공된 모범 답안과 핵심 키워드만을 근거로 채점하며, 외부 지식을 사용하지 않습니다.

@@ -22,6 +22,12 @@ jwt:
   token-expiration-seconds: 86400  # 1일 (24시간)
   cookie-expiration-seconds: 86400  # 1일 (24시간)
 
+# OpenAI 설정
+openai:
+  api-key: ${OPENAI_API_KEY:default-key-for-local-dev}
+  model: gpt-4o-mini
+  api-url: https://api.openai.com/v1/chat/completions
+
 springdoc:
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
