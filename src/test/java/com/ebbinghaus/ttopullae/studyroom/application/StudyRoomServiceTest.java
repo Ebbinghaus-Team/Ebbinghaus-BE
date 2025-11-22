@@ -2,13 +2,19 @@ package com.ebbinghaus.ttopullae.studyroom.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.global.util.JoinCodeGenerator;
+import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemType;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -60,6 +66,9 @@ class StudyRoomServiceTest {
 
     @Mock
     private ProblemReviewStateRepository problemReviewStateRepository;
+
+    @Mock
+    private ProblemAttemptRepository problemAttemptRepository;
 
     @Test
     @DisplayName("개인 공부방 생성 성공")
@@ -816,5 +825,358 @@ class StudyRoomServiceTest {
 
         verify(userRepository, times(1)).findById(nonExistentUserId);
         verify(studyRoomMemberRepository, never()).findAllByUserAndActive(any(), any());
+    }
+
+    // ===== 개인 공부방 문제 목록 조회 API 테스트 =====
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 성공 - 빈 목록")
+    void getPersonalRoomProblems_Success_EmptyList() {
+        // given
+        Long userId = 1L;
+        Long studyRoomId = 1L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(studyRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
+        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId)).willReturn(Collections.emptyList());
+
+        // when
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.studyRoomId()).isEqualTo(studyRoomId);
+        assertThat(result.studyRoomName()).isEqualTo("자바 스터디");
+        assertThat(result.problems()).isEmpty();
+        assertThat(result.totalCount()).isEqualTo(0);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(studyRoomId);
+        verify(problemRepository, times(1)).findByStudyRoomIdWithCreator(studyRoomId);
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 성공 - 필터 ALL")
+    void getPersonalRoomProblems_Success_FilterAll() {
+        // given
+        Long userId = 1L;
+        Long studyRoomId = 1L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(studyRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+
+        Problem problem1 = Problem.builder()
+                .problemId(1L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.SUBJECTIVE)
+                .question("자바의 특징을 설명하시오")
+                .build();
+
+        Problem problem2 = Problem.builder()
+                .problemId(2L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.MCQ)
+                .question("다음 중 접근 제어자가 아닌 것은?")
+                .build();
+
+        ProblemReviewState reviewState1 = ProblemReviewState.builder()
+                .stateId(1L)
+                .user(mockUser)
+                .problem(problem1)
+                .gate(ReviewGate.GATE_1)
+                .nextReviewDate(java.time.LocalDate.now())
+                .reviewCount(1)
+                .build();
+
+        ProblemReviewState reviewState2 = ProblemReviewState.builder()
+                .stateId(2L)
+                .user(mockUser)
+                .problem(problem2)
+                .gate(ReviewGate.GATE_2)
+                .nextReviewDate(java.time.LocalDate.now())
+                .reviewCount(2)
+                .build();
+
+        ProblemAttempt attempt1 = ProblemAttempt.builder()
+                .attemptId(1L)
+                .user(mockUser)
+                .problem(problem1)
+                .isCorrect(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
+        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId))
+                .willReturn(Arrays.asList(problem1, problem2));
+        given(problemReviewStateRepository.findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L)))
+                .willReturn(Arrays.asList(reviewState1, reviewState2));
+        given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L)))
+                .willReturn(List.of(attempt1));
+
+        // when
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.problems()).hasSize(2);
+        assertThat(result.totalCount()).isEqualTo(2);
+
+        PersonalRoomProblemListResult.ProblemInfo firstProblem = result.problems().get(0);
+        assertThat(firstProblem.problemId()).isEqualTo(1L);
+        assertThat(firstProblem.question()).isEqualTo("자바의 특징을 설명하시오");
+        assertThat(firstProblem.problemType()).isEqualTo(ProblemType.SUBJECTIVE);
+        assertThat(firstProblem.reviewGate()).isEqualTo(ReviewGate.GATE_1);
+        assertThat(firstProblem.reviewCount()).isEqualTo(1);
+
+        PersonalRoomProblemListResult.ProblemInfo secondProblem = result.problems().get(1);
+        assertThat(secondProblem.problemId()).isEqualTo(2L);
+        assertThat(secondProblem.reviewGate()).isEqualTo(ReviewGate.GATE_2);
+        assertThat(secondProblem.reviewCount()).isEqualTo(2);
+
+        verify(problemRepository, times(1)).findByStudyRoomIdWithCreator(studyRoomId);
+        verify(problemReviewStateRepository, times(1)).findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L));
+        verify(problemAttemptRepository, times(1)).findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L));
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 성공 - 필터 GATE_1")
+    void getPersonalRoomProblems_Success_FilterGate1() {
+        // given
+        Long userId = 1L;
+        Long studyRoomId = 1L;
+        String filter = "GATE_1";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(studyRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+
+        Problem problem1 = Problem.builder()
+                .problemId(1L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.SUBJECTIVE)
+                .question("자바의 특징을 설명하시오")
+                .build();
+
+        Problem problem2 = Problem.builder()
+                .problemId(2L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.MCQ)
+                .question("다음 중 접근 제어자가 아닌 것은?")
+                .build();
+
+        ProblemReviewState reviewState1 = ProblemReviewState.builder()
+                .stateId(1L)
+                .user(mockUser)
+                .problem(problem1)
+                .gate(ReviewGate.GATE_1)
+                .reviewCount(1)
+                .nextReviewDate(java.time.LocalDate.now())
+                .build();
+
+        ProblemReviewState reviewState2 = ProblemReviewState.builder()
+                .stateId(2L)
+                .user(mockUser)
+                .problem(problem2)
+                .gate(ReviewGate.GATE_2) // GATE_2는 필터링됨
+                .reviewCount(2)
+                .nextReviewDate(java.time.LocalDate.now())
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
+        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId))
+                .willReturn(Arrays.asList(problem1, problem2));
+        given(problemReviewStateRepository.findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L)))
+                .willReturn(Arrays.asList(reviewState1, reviewState2));
+        given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L)))
+                .willReturn(Collections.emptyList());
+
+        // when
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.problems()).hasSize(1); // GATE_1 문제만 포함
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.problems().get(0).reviewGate()).isEqualTo(ReviewGate.GATE_1);
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 사용자를 찾을 수 없음")
+    void getPersonalRoomProblems_Fail_UserNotFound() {
+        // given
+        Long nonExistentUserId = 999L;
+        Long studyRoomId = 1L;
+        String filter = "ALL";
+
+        given(userRepository.findById(nonExistentUserId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(nonExistentUserId, studyRoomId, filter))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(nonExistentUserId);
+        verify(studyRoomRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 스터디룸을 찾을 수 없음")
+    void getPersonalRoomProblems_Fail_StudyRoomNotFound() {
+        // given
+        Long userId = 1L;
+        Long nonExistentStudyRoomId = 999L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(nonExistentStudyRoomId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, nonExistentStudyRoomId, filter))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.STUDY_ROOM_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(nonExistentStudyRoomId);
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 개인방이 아님")
+    void getPersonalRoomProblems_Fail_NotPersonalRoom() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 1L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.GROUP) // 그룹 스터디
+                .name("알고리즘 스터디")
+                .description("알고리즘 학습")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, groupRoomId, filter))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_PERSONAL_ROOM);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(problemRepository, never()).findByStudyRoomIdWithCreator(anyLong());
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 소유자가 아님")
+    void getPersonalRoomProblems_Fail_NotRoomOwner() {
+        // given
+        Long userId = 1L;
+        Long studyRoomId = 1L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        User otherUser = User.builder()
+                .userId(2L)
+                .email("other@example.com")
+                .username("다른유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(studyRoomId)
+                .owner(otherUser) // 다른 사용자의 개인방
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_ROOM_OWNER);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(studyRoomId);
+        verify(problemRepository, never()).findByStudyRoomIdWithCreator(anyLong());
     }
 }
