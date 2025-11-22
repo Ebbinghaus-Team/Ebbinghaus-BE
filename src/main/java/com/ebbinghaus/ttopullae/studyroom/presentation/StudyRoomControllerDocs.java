@@ -10,6 +10,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomProblemListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,8 +22,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Study Room", description = "스터디룸 관리 API")
 public interface StudyRoomControllerDocs {
@@ -373,5 +376,113 @@ public interface StudyRoomControllerDocs {
     @GetMapping("/group")
     ResponseEntity<GroupRoomListResponse> getGroupRooms(
             @Parameter(hidden = true) @LoginUser Long userId
+    );
+
+    @Operation(
+            summary = "개인 공부방 문제 목록 조회",
+            description = "개인 공부방의 문제 목록을 조회합니다. 필터(ALL, GATE_1, GATE_2, GRADUATED)를 사용하여 복습 상태별로 문제를 조회할 수 있습니다. 개인 공부방의 소유자만 접근할 수 있습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "개인 공부방 문제 목록 조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = PersonalRoomProblemListResponse.class),
+                            examples = @ExampleObject(
+                                    name = "개인 공부방 문제 목록 조회 성공 예시",
+                                    value = """
+                                            {
+                                              "studyRoomId": 1,
+                                              "studyRoomName": "자바 마스터하기",
+                                              "problems": [
+                                                {
+                                                  "problemId": 1,
+                                                  "question": "자바의 특징을 3가지 설명하시오",
+                                                  "problemType": "ESSAY",
+                                                  "reviewGate": "GATE_1",
+                                                  "createdAt": "2025-01-17T10:00:00",
+                                                  "lastReviewedAt": "2025-01-18T14:30:00",
+                                                  "reviewCount": 1
+                                                },
+                                                {
+                                                  "problemId": 2,
+                                                  "question": "다음 중 접근 제어자가 아닌 것은?",
+                                                  "problemType": "MULTIPLE_CHOICE",
+                                                  "reviewGate": "GATE_2",
+                                                  "createdAt": "2025-01-15T09:20:00",
+                                                  "lastReviewedAt": "2025-01-18T10:15:00",
+                                                  "reviewCount": 2
+                                                },
+                                                {
+                                                  "problemId": 3,
+                                                  "question": "객체지향 프로그래밍의 4대 특징은?",
+                                                  "problemType": "SHORT_ANSWER",
+                                                  "reviewGate": "GRADUATED",
+                                                  "createdAt": "2025-01-10T11:00:00",
+                                                  "lastReviewedAt": "2025-01-17T16:00:00",
+                                                  "reviewCount": 3
+                                                }
+                                              ],
+                                              "totalCount": 3
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "그룹 스터디 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "개인 공부방이 아님",
+                                              "status": 400,
+                                              "detail": "해당 스터디룸은 개인 공부방이 아닙니다.",
+                                              "instance": "/api/study-rooms/personal/2/problems"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "개인 공부방의 소유자가 아닌 경우",
+                                    value = """
+                                            {
+                                              "title": "스터디룸 소유자가 아님",
+                                              "status": 403,
+                                              "detail": "해당 스터디룸의 소유자만 접근할 수 있습니다.",
+                                              "instance": "/api/study-rooms/personal/1/problems"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "404", description = "스터디룸을 찾을 수 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "존재하지 않는 스터디룸 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "스터디룸을 찾을 수 없음",
+                                              "status": 404,
+                                              "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+                                              "instance": "/api/study-rooms/personal/999/problems"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/personal/{studyRoomId}/problems")
+    ResponseEntity<PersonalRoomProblemListResponse> getPersonalRoomProblems(
+            @Parameter(hidden = true) @LoginUser Long userId,
+            @Parameter(description = "스터디룸 ID", required = true) @PathVariable Long studyRoomId,
+            @Parameter(description = "필터 타입 (ALL, GATE_1, GATE_2, GRADUATED)", example = "ALL") @RequestParam(defaultValue = "ALL") String filter
     );
 }

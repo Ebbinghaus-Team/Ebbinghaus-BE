@@ -4,6 +4,7 @@ import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRequest;
@@ -14,14 +15,17 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomProblemListResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -110,6 +114,30 @@ public class StudyRoomController implements StudyRoomControllerDocs {
     ) {
         GroupRoomListResult result = studyRoomService.getGroupRooms(userId);
         GroupRoomListResponse response = GroupRoomListResponse.from(result);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 개인 공부방의 문제 목록을 조회합니다.
+     * 필터링 옵션(ALL/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @param studyRoomId 스터디룸 ID
+     * @param filter 필터 타입 (기본값: ALL)
+     * @return 개인 공부방 문제 목록
+     */
+    @GetMapping("/personal/{studyRoomId}/problems")
+    public ResponseEntity<PersonalRoomProblemListResponse> getPersonalRoomProblems(
+            @LoginUser Long userId,
+            @PathVariable Long studyRoomId,
+            @RequestParam(defaultValue = "ALL") String filter
+    ) {
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(
+                userId,
+                studyRoomId,
+                filter
+        );
+        PersonalRoomProblemListResponse response = PersonalRoomProblemListResponse.from(result);
         return ResponseEntity.ok(response);
     }
 }

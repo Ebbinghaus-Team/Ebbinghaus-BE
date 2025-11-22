@@ -2,7 +2,11 @@ package com.ebbinghaus.ttopullae.studyroom.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.global.util.JoinCodeGenerator;
+import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
@@ -11,6 +15,8 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult.ProblemInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -23,6 +29,8 @@ import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
 import com.ebbinghaus.ttopullae.user.exception.UserException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +46,7 @@ public class StudyRoomService {
     private final UserRepository userRepository;
     private final ProblemRepository problemRepository;
     private final ProblemReviewStateRepository problemReviewStateRepository;
+    private final ProblemAttemptRepository problemAttemptRepository;
 
     /**
      * 개인 공부방을 생성합니다.
@@ -192,6 +201,114 @@ public class StudyRoomService {
                 .toList();
 
         return new GroupRoomListResult(roomInfos);
+    }
+
+    /**
+     * 개인 공부방의 문제 목록을 조회합니다.
+     * 필터링 옵션(ALL/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     *
+     * @param userId 사용자 ID
+     * @param studyRoomId 스터디룸 ID
+     * @param filter 필터 타입 (ALL, GATE_1, GATE_2, GRADUATED)
+     * @return 문제 목록 결과
+     */
+    @Transactional(readOnly = true)
+    public PersonalRoomProblemListResult getPersonalRoomProblems(
+            Long userId,
+            Long studyRoomId,
+            String filter
+    ) {
+        User user = findUserById(userId);
+
+        // 스터디룸 조회
+        StudyRoom studyRoom = studyRoomRepository.findById(studyRoomId)
+                .orElseThrow(() -> new ApplicationException(StudyRoomException.STUDY_ROOM_NOT_FOUND));
+
+        // 개인방인지 확인
+        if (studyRoom.getRoomType() != RoomType.PERSONAL) {
+            throw new ApplicationException(StudyRoomException.NOT_PERSONAL_ROOM);
+        }
+
+        // 소유자 권한 확인
+        if (!studyRoom.getOwner().getUserId().equals(userId)) {
+            throw new ApplicationException(StudyRoomException.NOT_ROOM_OWNER);
+        }
+
+        // 스터디룸의 모든 문제 조회 (Fetch Join으로 creator 즉시 로딩)
+        List<Problem> problems = problemRepository.findByStudyRoomIdWithCreator(studyRoomId);
+
+        // 문제가 없으면 빈 결과 반환
+        if (problems.isEmpty()) {
+            return new PersonalRoomProblemListResult(
+                    studyRoomId,
+                    studyRoom.getName(),
+                    List.of(),
+                    0
+            );
+        }
+
+        // 문제 ID 목록 추출
+        List<Long> problemIds = problems.stream()
+                .map(Problem::getProblemId)
+                .toList();
+
+        // 복습 상태 조회 (Batch 조회)
+        List<ProblemReviewState> reviewStates = problemReviewStateRepository
+                .findByUserIdAndProblemIds(userId, problemIds);
+
+        // 복습 상태 맵 생성 (problemId -> ProblemReviewState)
+        Map<Long, ProblemReviewState> reviewStateMap = reviewStates.stream()
+                .collect(Collectors.toMap(
+                        rs -> rs.getProblem().getProblemId(),
+                        rs -> rs
+                ));
+
+        // 마지막 풀이 기록 조회 (Batch 조회)
+        List<ProblemAttempt> latestAttempts = problemAttemptRepository
+                .findLatestAttemptsByUserAndProblems(userId, problemIds);
+
+        // 마지막 풀이 기록 맵 생성 (problemId -> ProblemAttempt)
+        Map<Long, ProblemAttempt> attemptMap = latestAttempts.stream()
+                .collect(Collectors.toMap(
+                        attempt -> attempt.getProblem().getProblemId(),
+                        attempt -> attempt
+                ));
+
+        // 필터 적용 및 DTO 변환
+        ReviewGate targetGate = "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
+
+        List<ProblemInfo> problemInfos = problems.stream()
+                .filter(problem -> {
+                    ProblemReviewState reviewState = reviewStateMap.get(problem.getProblemId());
+                    // 복습 상태가 없는 문제는 제외 (개인방 문제는 생성 즉시 등록되므로 발생하지 않음)
+                    if (reviewState == null) {
+                        return false;
+                    }
+                    // 필터가 null(ALL)이면 모두 포함, 아니면 해당 관문만 포함
+                    return targetGate == null || reviewState.getGate() == targetGate;
+                })
+                .map(problem -> {
+                    ProblemReviewState reviewState = reviewStateMap.get(problem.getProblemId());
+                    ProblemAttempt latestAttempt = attemptMap.get(problem.getProblemId());
+
+                    return new ProblemInfo(
+                            problem.getProblemId(),
+                            problem.getQuestion(),
+                            problem.getProblemType(),
+                            reviewState.getGate(),
+                            problem.getCreatedAt(),
+                            latestAttempt != null ? latestAttempt.getCreatedAt() : null,
+                            reviewState.getReviewCount()
+                    );
+                })
+                .toList();
+
+        return new PersonalRoomProblemListResult(
+                studyRoomId,
+                studyRoom.getName(),
+                problemInfos,
+                problemInfos.size()
+        );
     }
 
     /**
