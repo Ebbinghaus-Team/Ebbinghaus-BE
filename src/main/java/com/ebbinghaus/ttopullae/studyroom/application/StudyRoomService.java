@@ -15,8 +15,8 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
-import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult.ProblemInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -206,97 +206,75 @@ public class StudyRoomService {
     /**
      * 개인 공부방의 문제 목록을 조회합니다.
      * 필터링 옵션(ALL/GATE_1/GATE_2/GRADUATED)을 지원합니다.
-     * 단일 쿼리로 문제 + 생성자 + 복습 상태를 Fetch Join으로 조회합니다.
      *
-     * @param userId 사용자 ID
-     * @param studyRoomId 스터디룸 ID
-     * @param filter 필터 타입 (ALL, GATE_1, GATE_2, GRADUATED)
+     * @param command 문제 목록 조회 요청 Command
      * @return 문제 목록 결과
      */
     @Transactional(readOnly = true)
     public PersonalRoomProblemListResult getPersonalRoomProblems(
-            Long userId,
-            Long studyRoomId,
-            String filter
+            PersonalRoomProblemListCommand command
     ) {
-        User user = findUserById(userId);
+        User user = findUserById(command.userId());
+        StudyRoom studyRoom = findStudyRoomById(command.studyRoomId());
+        validatePersonalRoomOwnership(studyRoom, user.getUserId());
 
-        // 스터디룸 조회
-        StudyRoom studyRoom = studyRoomRepository.findById(studyRoomId)
+        ReviewGate targetGate = parseFilter(command.filter());
+        List<Problem> problems = problemRepository.findPersonalRoomProblemsWithReviewState(
+                command.studyRoomId(), user.getUserId(), targetGate);
+        Map<Long, ProblemAttempt> attemptMap = findLatestAttempts(problems, user.getUserId());
+
+        return PersonalRoomProblemListResult.of(studyRoom, problems, attemptMap, user.getUserId());
+    }
+
+    /**
+     * 스터디룸 ID로 StudyRoom 엔티티를 조회합니다.
+     */
+    private StudyRoom findStudyRoomById(Long studyRoomId) {
+        return studyRoomRepository.findById(studyRoomId)
                 .orElseThrow(() -> new ApplicationException(StudyRoomException.STUDY_ROOM_NOT_FOUND));
+    }
 
-        // 개인방인지 확인
+    /**
+     * 개인방 소유자 권한을 검증합니다.
+     * 개인방 타입 확인 및 소유자 검증을 수행합니다.
+     */
+    private void validatePersonalRoomOwnership(StudyRoom studyRoom, Long userId) {
         if (studyRoom.getRoomType() != RoomType.PERSONAL) {
             throw new ApplicationException(StudyRoomException.NOT_PERSONAL_ROOM);
         }
-
-        // 소유자 권한 확인
         if (!studyRoom.getOwner().getUserId().equals(userId)) {
             throw new ApplicationException(StudyRoomException.NOT_ROOM_OWNER);
         }
+    }
 
-        // 동적 필터링을 위한 ReviewGate 변환 (ALL이면 null로 전달)
-        ReviewGate targetGate = "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
+    /**
+     * 필터 문자열을 ReviewGate로 변환합니다.
+     * "ALL"인 경우 null을 반환하여 전체 조회를 수행합니다.
+     */
+    private ReviewGate parseFilter(String filter) {
+        return "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
+    }
 
-        // 단일 쿼리로 문제 + 생성자 + 복습 상태 조회 (Fetch Join)
-        List<Problem> problems = problemRepository.findPersonalRoomProblemsWithReviewState(
-                studyRoomId,
-                userId,
-                targetGate
-        );
-
-        // 문제 ID 목록 추출 (마지막 복습일 조회용)
+    /**
+     * 문제 목록에 대한 사용자의 최근 시도 기록을 조회하여 Map으로 반환합니다.
+     */
+    private Map<Long, ProblemAttempt> findLatestAttempts(List<Problem> problems, Long userId) {
         List<Long> problemIds = problems.stream()
                 .map(Problem::getProblemId)
                 .toList();
 
-        // 마지막 복습일 조회 (Batch 쿼리)
-        List<ProblemAttempt> latestAttempts = problemIds.isEmpty()
-                ? List.of()
-                : problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, problemIds);
+        if (problemIds.isEmpty()) {
+            return Map.of();
+        }
 
-        // 마지막 풀이 기록 맵 생성 (problemId -> ProblemAttempt)
-        Map<Long, ProblemAttempt> attemptMap = latestAttempts.stream()
+        List<ProblemAttempt> latestAttempts =
+                problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, problemIds);
+
+        return latestAttempts.stream()
                 .collect(Collectors.toMap(
                         attempt -> attempt.getProblem().getProblemId(),
                         attempt -> attempt
                 ));
-
-        // DTO 변환
-        List<ProblemInfo> problemInfos = problems.stream()
-                .map(problem -> {
-                    // reviewStates에서 현재 사용자의 복습 상태 찾기
-                    ProblemReviewState userReviewState = problem.getReviewStates().stream()
-                            .filter(rs -> rs.getUser().getUserId().equals(userId))
-                            .findFirst()
-                            .orElse(null);
-
-                    // 복습 상태가 없으면 null (실제로는 발생하지 않음 - 쿼리에서 필터링됨)
-                    if (userReviewState == null) {
-                        return null;
-                    }
-
-                    ProblemAttempt latestAttempt = attemptMap.get(problem.getProblemId());
-
-                    return new ProblemInfo(
-                            problem.getProblemId(),
-                            problem.getQuestion(),
-                            problem.getProblemType(),
-                            userReviewState.getGate(),
-                            problem.getCreatedAt(),
-                            latestAttempt != null ? latestAttempt.getCreatedAt() : null,
-                            userReviewState.getReviewCount()
-                    );
-                })
-                .filter(info -> info != null)
-                .toList();
-
-        return new PersonalRoomProblemListResult(
-                studyRoomId,
-                studyRoom.getName(),
-                problemInfos,
-                problemInfos.size()
-        );
     }
 
     /**

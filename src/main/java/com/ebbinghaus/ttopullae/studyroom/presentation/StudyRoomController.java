@@ -4,6 +4,7 @@ import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.application.StudyRoomService;
@@ -132,11 +133,12 @@ public class StudyRoomController implements StudyRoomControllerDocs {
             @PathVariable Long studyRoomId,
             @RequestParam(defaultValue = "ALL") String filter
     ) {
-        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(
                 userId,
                 studyRoomId,
                 filter
         );
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(command);
         PersonalRoomProblemListResponse response = PersonalRoomProblemListResponse.from(result);
         return ResponseEntity.ok(response);
     }
