@@ -13,20 +13,4 @@ public interface ProblemReviewStateRepository extends JpaRepository<ProblemRevie
 
     int countByUserAndProblem_StudyRoomAndGate(User user, StudyRoom studyRoom, ReviewGate gate);
 
-    /**
-     * 특정 사용자의 여러 문제에 대한 복습 상태를 조회합니다.
-     *
-     * @param userId 사용자 ID
-     * @param problemIds 문제 ID 목록
-     * @return 복습 상태 목록
-     */
-    @Query("""
-        SELECT prs FROM ProblemReviewState prs
-        WHERE prs.user.userId = :userId
-          AND prs.problem.problemId IN :problemIds
-        """)
-    List<ProblemReviewState> findByUserIdAndProblemIds(
-        @Param("userId") Long userId,
-        @Param("problemIds") List<Long> problemIds
-    );
 }
