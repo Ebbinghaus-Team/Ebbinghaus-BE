@@ -14,7 +14,7 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
 
     /**
      * 개인 공부방의 문제 목록을 복습 상태와 함께 조회합니다.
-     * Fetch Join을 사용하여 단일 쿼리로 문제 + 생성자 + 복습 상태를 조회합니다.
+     * Fetch Join을 사용하여 단일 쿼리로 문제 + 복습 상태를 조회합니다.
      * 동적 필터링을 통해 ALL/GATE_1/GATE_2/GRADUATED 필터를 지원합니다.
      *
      * @param studyRoomId 스터디룸 ID
@@ -24,8 +24,7 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
      */
     @Query("""
         SELECT DISTINCT p FROM Problem p
-        LEFT JOIN FETCH p.creator
-        LEFT JOIN p.reviewStates rs
+        LEFT JOIN FETCH p.reviewStates rs
         WHERE p.studyRoom.studyRoomId = :studyRoomId
           AND rs.user.userId = :userId
           AND (:targetGate IS NULL OR rs.gate = :targetGate)
