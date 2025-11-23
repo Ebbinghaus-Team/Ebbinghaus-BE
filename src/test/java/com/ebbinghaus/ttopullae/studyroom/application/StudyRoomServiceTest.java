@@ -14,6 +14,7 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
@@ -860,7 +861,8 @@ class StudyRoomServiceTest {
                 .willReturn(Collections.emptyList());
 
         // when
-        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, studyRoomId, filter);
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(command);
 
         // then
         assertThat(result).isNotNull();
@@ -948,7 +950,8 @@ class StudyRoomServiceTest {
                 .willReturn(List.of(attempt1));
 
         // when
-        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, studyRoomId, filter);
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(command);
 
         // then
         assertThat(result).isNotNull();
@@ -1021,7 +1024,8 @@ class StudyRoomServiceTest {
                 .willReturn(Collections.emptyList());
 
         // when
-        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, studyRoomId, filter);
+        PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(command);
 
         // then
         assertThat(result).isNotNull();
@@ -1040,8 +1044,10 @@ class StudyRoomServiceTest {
 
         given(userRepository.findById(nonExistentUserId)).willReturn(Optional.empty());
 
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(nonExistentUserId, studyRoomId, filter);
+
         // when & then
-        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(nonExistentUserId, studyRoomId, filter))
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(command))
                 .isInstanceOf(ApplicationException.class)
                 .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
 
@@ -1067,8 +1073,10 @@ class StudyRoomServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(nonExistentStudyRoomId)).willReturn(Optional.empty());
 
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, nonExistentStudyRoomId, filter);
+
         // when & then
-        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, nonExistentStudyRoomId, filter))
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(command))
                 .isInstanceOf(ApplicationException.class)
                 .hasFieldOrPropertyWithValue("code", StudyRoomException.STUDY_ROOM_NOT_FOUND);
 
@@ -1104,8 +1112,10 @@ class StudyRoomServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
 
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, groupRoomId, filter);
+
         // when & then
-        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, groupRoomId, filter))
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(command))
                 .isInstanceOf(ApplicationException.class)
                 .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_PERSONAL_ROOM);
 
@@ -1149,8 +1159,10 @@ class StudyRoomServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
 
+        PersonalRoomProblemListCommand command = new PersonalRoomProblemListCommand(userId, studyRoomId, filter);
+
         // when & then
-        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter))
+        assertThatThrownBy(() -> studyRoomService.getPersonalRoomProblems(command))
                 .isInstanceOf(ApplicationException.class)
                 .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_ROOM_OWNER);
 
