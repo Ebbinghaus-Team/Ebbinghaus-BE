@@ -14,6 +14,7 @@
 3. [그룹 스터디 생성 API](#3-그룹-스터디-생성-api)
 4. [문제 생성 API](#4-문제-생성-api)
 5. [AI 채점 테스트 API](#5-ai-채점-테스트-api)
+6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
 
 ---
 
@@ -997,3 +998,222 @@ AI는 다음 기준에 따라 답안을 채점합니다:
 - **비용 발생**: OpenAI API 호출 시 비용이 발생할 수 있습니다.
 - **응답 시간**: AI 모델 호출로 인해 응답 시간이 일반 API보다 길 수 있습니다 (보통 2-5초).
 - **외부 지식 금지**: AI는 오직 제공된 모범 답안과 핵심 키워드만을 근거로 채점하며, 외부 지식을 사용하지 않습니다.
+
+---
+
+## 6. 개인 공부방 문제 목록 조회 API
+
+### 6.1. 기본 정보
+
+- **Endpoint**: `GET /api/study-rooms/personal/{studyRoomId}/problems`
+- **설명**: 개인 공부방에 등록된 문제 목록을 조회합니다. 복습 관문(GATE_1, GATE_2, GRADUATED)별로 필터링할 수 있습니다.
+- **인증**: **필수** (JWT 쿠키 인증)
+
+### 6.2. Request
+
+#### 6.2.1. Headers
+
+```
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### 6.2.2. Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 예시 |
+|---------|------|------|------|------|
+| studyRoomId | Long | O | 조회할 개인 공부방 ID | 1 |
+
+#### 6.2.3. Query Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 기본값 | 가능한 값 |
+|---------|------|------|------|--------|----------|
+| filter | String | X | 복습 관문 필터 | "ALL" | "ALL", "GATE_1", "GATE_2", "GRADUATED" |
+
+**필터 설명**:
+- `ALL`: 모든 문제 조회 (기본값)
+- `GATE_1`: 1일차 복습 관문의 문제만 조회
+- `GATE_2`: 7일차 복습 관문의 문제만 조회
+- `GRADUATED`: 복습을 완료한 문제만 조회
+
+#### 6.2.4. Request Example
+
+```http
+GET /api/study-rooms/personal/1/problems?filter=ALL
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+```http
+GET /api/study-rooms/personal/1/problems?filter=GATE_1
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 6.3. Response
+
+#### 6.3.1. Success Response (200 OK)
+
+##### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| studyRoomId | Long | 스터디룸 ID | 1 |
+| studyRoomName | String | 스터디룸 이름 | "자바 스터디" |
+| problems | List\<ProblemSummary\> | 문제 목록 | [...] |
+| totalCount | Integer | 전체 문제 수 | 3 |
+
+##### ProblemSummary 필드
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| problemId | Long | 문제 ID | 1 |
+| question | String | 문제 내용 | "자바의 접근 제어자가 아닌 것은?" |
+| problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "MCQ" |
+| reviewGate | String | 현재 복습 관문 (GATE_1, GATE_2, GRADUATED) | "GATE_1" |
+| createdAt | String (ISO 8601) | 문제 생성 일시 | "2025-01-21T10:30:00" |
+| lastReviewedAt | String (ISO 8601) | 마지막 복습 일시 (null 가능) | "2025-01-22T14:20:00" |
+| reviewCount | Integer | 복습 횟수 | 2 |
+
+##### Response Example (문제 있음)
+
+```json
+{
+  "studyRoomId": 1,
+  "studyRoomName": "자바 스터디",
+  "problems": [
+    {
+      "problemId": 1,
+      "question": "자바의 접근 제어자가 아닌 것은?",
+      "problemType": "MCQ",
+      "reviewGate": "GATE_1",
+      "createdAt": "2025-01-21T10:30:00",
+      "lastReviewedAt": "2025-01-22T14:20:00",
+      "reviewCount": 2
+    },
+    {
+      "problemId": 2,
+      "question": "JVM은 Java Virtual Machine의 약자이다.",
+      "problemType": "OX",
+      "reviewGate": "GATE_2",
+      "createdAt": "2025-01-21T11:00:00",
+      "lastReviewedAt": null,
+      "reviewCount": 0
+    },
+    {
+      "problemId": 3,
+      "question": "DDD의 핵심 개념에 대해 설명하시오.",
+      "problemType": "SUBJECTIVE",
+      "reviewGate": "GRADUATED",
+      "createdAt": "2025-01-21T11:30:00",
+      "lastReviewedAt": "2025-01-23T09:10:00",
+      "reviewCount": 5
+    }
+  ],
+  "totalCount": 3
+}
+```
+
+##### Response Example (빈 목록)
+
+```json
+{
+  "studyRoomId": 1,
+  "studyRoomName": "자바 스터디",
+  "problems": [],
+  "totalCount": 0
+}
+```
+
+### 6.4. Error Responses
+
+#### 6.4.1. 401 Unauthorized - 인증 실패
+
+**JWT 토큰 없음**
+```json
+{
+  "title": "인증되지 않은 요청",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/study-rooms/personal/1/problems"
+}
+```
+
+**JWT 토큰 유효하지 않음**
+```json
+{
+  "title": "유효하지 않은 토큰",
+  "status": 401,
+  "detail": "토큰이 유효하지 않습니다.",
+  "instance": "/api/study-rooms/personal/1/problems"
+}
+```
+
+#### 6.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
+
+```json
+{
+  "title": "스터디룸을 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+  "instance": "/api/study-rooms/personal/999/problems"
+}
+```
+
+#### 6.4.3. 400 Bad Request - 개인 공부방이 아님
+
+```json
+{
+  "title": "개인 공부방이 아님",
+  "status": 400,
+  "detail": "해당 스터디룸은 개인 공부방이 아닙니다.",
+  "instance": "/api/study-rooms/personal/1/problems"
+}
+```
+
+#### 6.4.4. 403 Forbidden - 스터디룸 소유자가 아님
+
+```json
+{
+  "title": "스터디룸 소유자가 아님",
+  "status": 403,
+  "detail": "해당 스터디룸의 소유자만 접근할 수 있습니다.",
+  "instance": "/api/study-rooms/personal/1/problems"
+}
+```
+
+### 6.5. 비즈니스 로직
+
+1. **인증 검증**
+   - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
+   - 유효하지 않은 토큰인 경우 401 에러 반환
+
+2. **사용자 및 스터디룸 검증**
+   - 사용자 존재 여부 확인
+   - 스터디룸 존재 여부 확인
+   - 스터디룸이 존재하지 않으면 404 에러 반환
+
+3. **개인 공부방 및 소유권 검증**
+   - 스터디룸이 개인 공부방(`RoomType.PERSONAL`)인지 확인
+   - 개인 공부방이 아니면 400 에러 반환
+   - 현재 사용자가 스터디룸의 소유자인지 확인
+   - 소유자가 아니면 403 에러 반환
+
+4. **필터 파싱 및 문제 조회**
+   - `filter` 파라미터를 `ReviewGate` Enum으로 변환
+   - `"ALL"`인 경우 모든 복습 관문의 문제 조회
+   - 특정 관문 지정 시 해당 관문의 문제만 조회
+   - 복습 상태(`ProblemReviewState`)가 있는 문제만 반환
+
+5. **최근 시도 기록 조회**
+   - 각 문제의 최근 풀이 시도(`ProblemAttempt`) 조회
+   - `lastReviewedAt` 필드에 사용
+
+6. **결과 변환 및 반환**
+   - 조회된 문제 목록을 Response DTO로 변환
+   - 200 OK 상태 코드와 함께 반환
+
+### 6.6. 주의사항
+
+- **개인 공부방 전용**: 이 API는 개인 공부방(`RoomType.PERSONAL`)만 지원합니다. 그룹 스터디의 문제 목록은 별도 API를 사용해야 합니다.
+- **소유자만 조회 가능**: 개인 공부방의 소유자만 문제 목록을 조회할 수 있습니다.
+- **복습 상태 기반**: 복습 상태(`ProblemReviewState`)가 등록되지 않은 문제는 목록에 포함되지 않습니다.
+- **필터 기본값**: `filter` 파라미터를 생략하면 `"ALL"`이 기본값으로 적용됩니다.
+- **lastReviewedAt null 가능**: 한 번도 풀지 않은 문제는 `lastReviewedAt` 필드가 `null`입니다.

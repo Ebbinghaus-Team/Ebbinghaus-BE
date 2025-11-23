@@ -6,6 +6,9 @@ import com.ebbinghaus.ttopullae.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Builder
 @Entity @Getter
 @Table(name = "problems")
@@ -40,4 +43,8 @@ public class Problem extends BaseTimeEntity {
     private String answerText;
     private String modelAnswerText;
     private Integer correctChoiceIndex;
+
+    @OneToMany(mappedBy = "problem", fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<ProblemReviewState> reviewStates = new ArrayList<>();
 }

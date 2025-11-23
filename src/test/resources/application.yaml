@@ -23,7 +23,7 @@ jwt:
 
 # OpenAI 설정 (테스트용)
 openai:
-  api-key: ${OPENAI_API_KEY}
+  api-key: ${OPENAI_API_KEY:test_api_key_123}
   model: gpt-4o-mini
   api-url: https://api.openai.com/v1/chat/completions
 

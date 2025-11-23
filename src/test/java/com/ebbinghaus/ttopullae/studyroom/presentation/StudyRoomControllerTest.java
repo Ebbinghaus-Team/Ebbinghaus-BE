@@ -517,4 +517,125 @@ class StudyRoomControllerTest {
                 .andDo(print())
                 .andExpect(status().isUnauthorized());
     }
+
+    // ==================== 개인 공부방 문제 목록 조회 API 테스트 ====================
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 성공 - 빈 목록")
+    void getPersonalRoomProblems_Success_EmptyList() throws Exception {
+        // given
+        StudyRoom personalRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+        studyRoomRepository.save(personalRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/personal/" + personalRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studyRoomId").value(personalRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.studyRoomName").value("자바 스터디"))
+                .andExpect(jsonPath("$.problems").isArray())
+                .andExpect(jsonPath("$.problems").isEmpty())
+                .andExpect(jsonPath("$.totalCount").value(0));
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - JWT 토큰 없음")
+    void getPersonalRoomProblems_Fail_NoToken() throws Exception {
+        // given
+        StudyRoom personalRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+        studyRoomRepository.save(personalRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/personal/" + personalRoom.getStudyRoomId() + "/problems")
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 스터디룸을 찾을 수 없음")
+    void getPersonalRoomProblems_Fail_StudyRoomNotFound() throws Exception {
+        // given
+        Long nonExistentStudyRoomId = 999L;
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/personal/" + nonExistentStudyRoomId + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("스터디룸을 찾을 수 없음"));
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 개인방이 아님")
+    void getPersonalRoomProblems_Fail_NotPersonalRoom() throws Exception {
+        // given
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 학습")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/personal/" + groupRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("개인 공부방이 아님"));
+    }
+
+    @Test
+    @DisplayName("개인 공부방 문제 목록 조회 실패 - 소유자가 아님")
+    void getPersonalRoomProblems_Fail_NotRoomOwner() throws Exception {
+        // given
+        // 다른 사용자 생성
+        User otherUser = User.builder()
+                .email("other@example.com")
+                .password("password123")
+                .username("다른유저")
+                .receiveNotifications(true)
+                .build();
+        userRepository.save(otherUser);
+
+        // 다른 사용자의 개인방 생성
+        StudyRoom personalRoom = StudyRoom.builder()
+                .owner(otherUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+        studyRoomRepository.save(personalRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/personal/" + personalRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("스터디룸 소유자가 아님"));
+    }
 }

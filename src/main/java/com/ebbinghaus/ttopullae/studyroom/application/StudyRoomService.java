@@ -2,7 +2,11 @@ package com.ebbinghaus.ttopullae.studyroom.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.global.util.JoinCodeGenerator;
+import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
@@ -11,6 +15,8 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.StudyRoomCreateResult;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -23,6 +29,8 @@ import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
 import com.ebbinghaus.ttopullae.user.exception.UserException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +46,7 @@ public class StudyRoomService {
     private final UserRepository userRepository;
     private final ProblemRepository problemRepository;
     private final ProblemReviewStateRepository problemReviewStateRepository;
+    private final ProblemAttemptRepository problemAttemptRepository;
 
     /**
      * 개인 공부방을 생성합니다.
@@ -192,6 +201,80 @@ public class StudyRoomService {
                 .toList();
 
         return new GroupRoomListResult(roomInfos);
+    }
+
+    /**
+     * 개인 공부방의 문제 목록을 조회합니다.
+     * 필터링 옵션(ALL/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     *
+     * @param command 문제 목록 조회 요청 Command
+     * @return 문제 목록 결과
+     */
+    @Transactional(readOnly = true)
+    public PersonalRoomProblemListResult getPersonalRoomProblems(
+            PersonalRoomProblemListCommand command
+    ) {
+        User user = findUserById(command.userId());
+        StudyRoom studyRoom = findStudyRoomById(command.studyRoomId());
+        validatePersonalRoomOwnership(studyRoom, user.getUserId());
+
+        ReviewGate targetGate = parseFilter(command.filter());
+        List<Problem> problems = problemRepository.findPersonalRoomProblemsWithReviewState(
+                command.studyRoomId(), user.getUserId(), targetGate);
+        Map<Long, ProblemAttempt> attemptMap = findLatestAttempts(problems, user.getUserId());
+
+        return PersonalRoomProblemListResult.of(studyRoom, problems, attemptMap, user.getUserId());
+    }
+
+    /**
+     * 스터디룸 ID로 StudyRoom 엔티티를 조회합니다.
+     */
+    private StudyRoom findStudyRoomById(Long studyRoomId) {
+        return studyRoomRepository.findById(studyRoomId)
+                .orElseThrow(() -> new ApplicationException(StudyRoomException.STUDY_ROOM_NOT_FOUND));
+    }
+
+    /**
+     * 개인방 소유자 권한을 검증합니다.
+     * 개인방 타입 확인 및 소유자 검증을 수행합니다.
+     */
+    private void validatePersonalRoomOwnership(StudyRoom studyRoom, Long userId) {
+        if (studyRoom.getRoomType() != RoomType.PERSONAL) {
+            throw new ApplicationException(StudyRoomException.NOT_PERSONAL_ROOM);
+        }
+        if (!studyRoom.getOwner().getUserId().equals(userId)) {
+            throw new ApplicationException(StudyRoomException.NOT_ROOM_OWNER);
+        }
+    }
+
+    /**
+     * 필터 문자열을 ReviewGate로 변환합니다.
+     * "ALL"인 경우 null을 반환하여 전체 조회를 수행합니다.
+     */
+    private ReviewGate parseFilter(String filter) {
+        return "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
+    }
+
+    /**
+     * 문제 목록에 대한 사용자의 최근 시도 기록을 조회하여 Map으로 반환합니다.
+     */
+    private Map<Long, ProblemAttempt> findLatestAttempts(List<Problem> problems, Long userId) {
+        List<Long> problemIds = problems.stream()
+                .map(Problem::getProblemId)
+                .toList();
+
+        if (problemIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<ProblemAttempt> latestAttempts =
+                problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, problemIds);
+
+        return latestAttempts.stream()
+                .collect(Collectors.toMap(
+                        attempt -> attempt.getProblem().getProblemId(),
+                        attempt -> attempt
+                ));
     }
 
     /**
