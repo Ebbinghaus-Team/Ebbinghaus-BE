@@ -856,7 +856,8 @@ class StudyRoomServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
-        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId)).willReturn(Collections.emptyList());
+        given(problemRepository.findPersonalRoomProblemsWithReviewState(studyRoomId, userId, null))
+                .willReturn(Collections.emptyList());
 
         // when
         PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(userId, studyRoomId, filter);
@@ -870,7 +871,7 @@ class StudyRoomServiceTest {
 
         verify(userRepository, times(1)).findById(userId);
         verify(studyRoomRepository, times(1)).findById(studyRoomId);
-        verify(problemRepository, times(1)).findByStudyRoomIdWithCreator(studyRoomId);
+        verify(problemRepository, times(1)).findPersonalRoomProblemsWithReviewState(studyRoomId, userId, null);
     }
 
     @Test
@@ -898,26 +899,9 @@ class StudyRoomServiceTest {
                 .joinCode(null)
                 .build();
 
-        Problem problem1 = Problem.builder()
-                .problemId(1L)
-                .studyRoom(personalRoom)
-                .creator(mockUser)
-                .problemType(ProblemType.SUBJECTIVE)
-                .question("자바의 특징을 설명하시오")
-                .build();
-
-        Problem problem2 = Problem.builder()
-                .problemId(2L)
-                .studyRoom(personalRoom)
-                .creator(mockUser)
-                .problemType(ProblemType.MCQ)
-                .question("다음 중 접근 제어자가 아닌 것은?")
-                .build();
-
         ProblemReviewState reviewState1 = ProblemReviewState.builder()
                 .stateId(1L)
                 .user(mockUser)
-                .problem(problem1)
                 .gate(ReviewGate.GATE_1)
                 .nextReviewDate(java.time.LocalDate.now())
                 .reviewCount(1)
@@ -926,10 +910,27 @@ class StudyRoomServiceTest {
         ProblemReviewState reviewState2 = ProblemReviewState.builder()
                 .stateId(2L)
                 .user(mockUser)
-                .problem(problem2)
                 .gate(ReviewGate.GATE_2)
                 .nextReviewDate(java.time.LocalDate.now())
                 .reviewCount(2)
+                .build();
+
+        Problem problem1 = Problem.builder()
+                .problemId(1L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.SUBJECTIVE)
+                .question("자바의 특징을 설명하시오")
+                .reviewStates(List.of(reviewState1))
+                .build();
+
+        Problem problem2 = Problem.builder()
+                .problemId(2L)
+                .studyRoom(personalRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.MCQ)
+                .question("다음 중 접근 제어자가 아닌 것은?")
+                .reviewStates(List.of(reviewState2))
                 .build();
 
         ProblemAttempt attempt1 = ProblemAttempt.builder()
@@ -941,10 +942,8 @@ class StudyRoomServiceTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
-        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId))
+        given(problemRepository.findPersonalRoomProblemsWithReviewState(studyRoomId, userId, null))
                 .willReturn(Arrays.asList(problem1, problem2));
-        given(problemReviewStateRepository.findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L)))
-                .willReturn(Arrays.asList(reviewState1, reviewState2));
         given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L)))
                 .willReturn(List.of(attempt1));
 
@@ -968,8 +967,7 @@ class StudyRoomServiceTest {
         assertThat(secondProblem.reviewGate()).isEqualTo(ReviewGate.GATE_2);
         assertThat(secondProblem.reviewCount()).isEqualTo(2);
 
-        verify(problemRepository, times(1)).findByStudyRoomIdWithCreator(studyRoomId);
-        verify(problemReviewStateRepository, times(1)).findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L));
+        verify(problemRepository, times(1)).findPersonalRoomProblemsWithReviewState(studyRoomId, userId, null);
         verify(problemAttemptRepository, times(1)).findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L));
     }
 
@@ -998,47 +996,28 @@ class StudyRoomServiceTest {
                 .joinCode(null)
                 .build();
 
+        ProblemReviewState reviewState1 = ProblemReviewState.builder()
+                .stateId(1L)
+                .user(mockUser)
+                .gate(ReviewGate.GATE_1)
+                .reviewCount(1)
+                .nextReviewDate(java.time.LocalDate.now())
+                .build();
+
         Problem problem1 = Problem.builder()
                 .problemId(1L)
                 .studyRoom(personalRoom)
                 .creator(mockUser)
                 .problemType(ProblemType.SUBJECTIVE)
                 .question("자바의 특징을 설명하시오")
-                .build();
-
-        Problem problem2 = Problem.builder()
-                .problemId(2L)
-                .studyRoom(personalRoom)
-                .creator(mockUser)
-                .problemType(ProblemType.MCQ)
-                .question("다음 중 접근 제어자가 아닌 것은?")
-                .build();
-
-        ProblemReviewState reviewState1 = ProblemReviewState.builder()
-                .stateId(1L)
-                .user(mockUser)
-                .problem(problem1)
-                .gate(ReviewGate.GATE_1)
-                .reviewCount(1)
-                .nextReviewDate(java.time.LocalDate.now())
-                .build();
-
-        ProblemReviewState reviewState2 = ProblemReviewState.builder()
-                .stateId(2L)
-                .user(mockUser)
-                .problem(problem2)
-                .gate(ReviewGate.GATE_2) // GATE_2는 필터링됨
-                .reviewCount(2)
-                .nextReviewDate(java.time.LocalDate.now())
+                .reviewStates(List.of(reviewState1))
                 .build();
 
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(studyRoomRepository.findById(studyRoomId)).willReturn(Optional.of(personalRoom));
-        given(problemRepository.findByStudyRoomIdWithCreator(studyRoomId))
-                .willReturn(Arrays.asList(problem1, problem2));
-        given(problemReviewStateRepository.findByUserIdAndProblemIds(userId, Arrays.asList(1L, 2L)))
-                .willReturn(Arrays.asList(reviewState1, reviewState2));
-        given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, Arrays.asList(1L, 2L)))
+        given(problemRepository.findPersonalRoomProblemsWithReviewState(studyRoomId, userId, ReviewGate.GATE_1))
+                .willReturn(List.of(problem1));
+        given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, List.of(1L)))
                 .willReturn(Collections.emptyList());
 
         // when
@@ -1132,7 +1111,7 @@ class StudyRoomServiceTest {
 
         verify(userRepository, times(1)).findById(userId);
         verify(studyRoomRepository, times(1)).findById(groupRoomId);
-        verify(problemRepository, never()).findByStudyRoomIdWithCreator(anyLong());
+        verify(problemRepository, never()).findPersonalRoomProblemsWithReviewState(anyLong(), anyLong(), any());
     }
 
     @Test
@@ -1177,6 +1156,6 @@ class StudyRoomServiceTest {
 
         verify(userRepository, times(1)).findById(userId);
         verify(studyRoomRepository, times(1)).findById(studyRoomId);
-        verify(problemRepository, never()).findByStudyRoomIdWithCreator(anyLong());
+        verify(problemRepository, never()).findPersonalRoomProblemsWithReviewState(anyLong(), anyLong(), any());
     }
 }

@@ -206,6 +206,7 @@ public class StudyRoomService {
     /**
      * 개인 공부방의 문제 목록을 조회합니다.
      * 필터링 옵션(ALL/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     * 단일 쿼리로 문제 + 생성자 + 복습 상태를 Fetch Join으로 조회합니다.
      *
      * @param userId 사용자 ID
      * @param studyRoomId 스터디룸 ID
@@ -234,38 +235,25 @@ public class StudyRoomService {
             throw new ApplicationException(StudyRoomException.NOT_ROOM_OWNER);
         }
 
-        // 스터디룸의 모든 문제 조회 (Fetch Join으로 creator 즉시 로딩)
-        List<Problem> problems = problemRepository.findByStudyRoomIdWithCreator(studyRoomId);
+        // 동적 필터링을 위한 ReviewGate 변환 (ALL이면 null로 전달)
+        ReviewGate targetGate = "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
 
-        // 문제가 없으면 빈 결과 반환
-        if (problems.isEmpty()) {
-            return new PersonalRoomProblemListResult(
-                    studyRoomId,
-                    studyRoom.getName(),
-                    List.of(),
-                    0
-            );
-        }
+        // 단일 쿼리로 문제 + 생성자 + 복습 상태 조회 (Fetch Join)
+        List<Problem> problems = problemRepository.findPersonalRoomProblemsWithReviewState(
+                studyRoomId,
+                userId,
+                targetGate
+        );
 
-        // 문제 ID 목록 추출
+        // 문제 ID 목록 추출 (마지막 복습일 조회용)
         List<Long> problemIds = problems.stream()
                 .map(Problem::getProblemId)
                 .toList();
 
-        // 복습 상태 조회 (Batch 조회)
-        List<ProblemReviewState> reviewStates = problemReviewStateRepository
-                .findByUserIdAndProblemIds(userId, problemIds);
-
-        // 복습 상태 맵 생성 (problemId -> ProblemReviewState)
-        Map<Long, ProblemReviewState> reviewStateMap = reviewStates.stream()
-                .collect(Collectors.toMap(
-                        rs -> rs.getProblem().getProblemId(),
-                        rs -> rs
-                ));
-
-        // 마지막 풀이 기록 조회 (Batch 조회)
-        List<ProblemAttempt> latestAttempts = problemAttemptRepository
-                .findLatestAttemptsByUserAndProblems(userId, problemIds);
+        // 마지막 복습일 조회 (Batch 쿼리)
+        List<ProblemAttempt> latestAttempts = problemIds.isEmpty()
+                ? List.of()
+                : problemAttemptRepository.findLatestAttemptsByUserAndProblems(userId, problemIds);
 
         // 마지막 풀이 기록 맵 생성 (problemId -> ProblemAttempt)
         Map<Long, ProblemAttempt> attemptMap = latestAttempts.stream()
@@ -274,33 +262,33 @@ public class StudyRoomService {
                         attempt -> attempt
                 ));
 
-        // 필터 적용 및 DTO 변환
-        ReviewGate targetGate = "ALL".equals(filter) ? null : ReviewGate.valueOf(filter);
-
+        // DTO 변환
         List<ProblemInfo> problemInfos = problems.stream()
-                .filter(problem -> {
-                    ProblemReviewState reviewState = reviewStateMap.get(problem.getProblemId());
-                    // 복습 상태가 없는 문제는 제외 (개인방 문제는 생성 즉시 등록되므로 발생하지 않음)
-                    if (reviewState == null) {
-                        return false;
-                    }
-                    // 필터가 null(ALL)이면 모두 포함, 아니면 해당 관문만 포함
-                    return targetGate == null || reviewState.getGate() == targetGate;
-                })
                 .map(problem -> {
-                    ProblemReviewState reviewState = reviewStateMap.get(problem.getProblemId());
+                    // reviewStates에서 현재 사용자의 복습 상태 찾기
+                    ProblemReviewState userReviewState = problem.getReviewStates().stream()
+                            .filter(rs -> rs.getUser().getUserId().equals(userId))
+                            .findFirst()
+                            .orElse(null);
+
+                    // 복습 상태가 없으면 null (실제로는 발생하지 않음 - 쿼리에서 필터링됨)
+                    if (userReviewState == null) {
+                        return null;
+                    }
+
                     ProblemAttempt latestAttempt = attemptMap.get(problem.getProblemId());
 
                     return new ProblemInfo(
                             problem.getProblemId(),
                             problem.getQuestion(),
                             problem.getProblemType(),
-                            reviewState.getGate(),
+                            userReviewState.getGate(),
                             problem.getCreatedAt(),
                             latestAttempt != null ? latestAttempt.getCreatedAt() : null,
-                            reviewState.getReviewCount()
+                            userReviewState.getReviewCount()
                     );
                 })
+                .filter(info -> info != null)
                 .toList();
 
         return new PersonalRoomProblemListResult(
