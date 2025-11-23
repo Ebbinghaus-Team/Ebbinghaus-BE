@@ -340,8 +340,8 @@ public void sendEmail(String to, String subject) {
 
 - API 스펙 문서화는 Swagger를 사용
 - 각 Controller의 Swagger 문서는 xxxControllerDocs 인터페이스로 분리하여 관리한다.
-- Swagger 작성 가이드라인은 `docs/SWAGGER.md` 참고
-- API에 대한 구체적인 설명은 `docs/API_SPEC.md`에 작성
+- Swagger 작성 가이드라인은 `docs/specs/SWAGGER.md` 참고
+- API에 대한 구체적인 설명은 `docs/specs/API_SPEC.md`에 작성
 
 ### 5.6. 엔티티 공통 규칙
 
@@ -419,9 +419,9 @@ docker logs mysql-server
 
 ## 9\. 문서
 
-- **PRD**: `docs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
-- **TABLE**: `docs/TABLE.md` - 테이블 설계 문서
-- **SWAGGER**: `docs/SWAGGER.md` - swagger API 문서화 요령을 담은 문서 
+- **PRD**: `docs/specs/PRD.md` - 종합 제품 요구사항 문서 (v1.7)
+- **TABLE**: `docs/specs/TABLE.md` - 테이블 설계 문서
+- **SWAGGER**: `docs/specs/SWAGGER.md` - swagger API 문서화 요령을 담은 문서 
 
 -----
 ## 10. 인증 / 인가
