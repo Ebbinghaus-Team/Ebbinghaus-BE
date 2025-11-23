@@ -1,8 +1,11 @@
 package com.ebbinghaus.ttopullae.problem.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
+import com.ebbinghaus.ttopullae.global.exception.CommonException;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
+import com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand;
+import com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewResult;
 import com.ebbinghaus.ttopullae.problem.domain.Problem;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemChoice;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemKeyword;
@@ -52,6 +55,33 @@ public class ProblemService {
         initializeReviewState(user, savedProblem, studyRoom);
 
         return ProblemCreateResult.from(savedProblem);
+    }
+
+    /**
+     * 오늘의 복습 문제 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public TodayReviewResult getTodayReviewProblems(TodayReviewCommand command) {
+        LocalDate today = LocalDate.now();
+
+        // 필터 파라미터 변환
+        ReviewGate targetGate = parseFilterToGate(command.filter());
+
+        // 복습 상태 조회 (Problem 엔티티 fetch join)
+        List<ProblemReviewState> reviewStates = problemReviewStateRepository
+            .findTodaysReviewProblems(command.userId(), today, targetGate);
+
+        // DTO 변환 (대시보드 통계 계산 포함)
+        return TodayReviewResult.of(reviewStates, today);
+    }
+
+    private ReviewGate parseFilterToGate(String filter) {
+        return switch (filter) {
+            case "GATE_1" -> ReviewGate.GATE_1;
+            case "GATE_2" -> ReviewGate.GATE_2;
+            case "ALL" -> null;
+            default -> throw new ApplicationException(CommonException.INVALID_QUERY_PARAMETER);
+        };
     }
 
     private User findUserById(Long userId) {
