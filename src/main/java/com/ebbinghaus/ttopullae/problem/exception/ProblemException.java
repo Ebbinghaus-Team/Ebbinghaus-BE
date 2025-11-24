@@ -13,7 +13,8 @@ public enum ProblemException implements ExceptionCode {
     INVALID_OX_DATA(HttpStatus.BAD_REQUEST, "OX 데이터 오류", "OX 문제는 정답(true/false)이 필요합니다."),
     INVALID_SHORT_DATA(HttpStatus.BAD_REQUEST, "단답형 데이터 오류", "단답형 문제는 정답 텍스트가 필요합니다."),
     INVALID_SUBJECTIVE_DATA(HttpStatus.BAD_REQUEST, "서술형 데이터 오류", "서술형 문제는 모범 답안과 키워드 목록이 필요합니다."),
-    INVALID_CHOICE_INDEX(HttpStatus.BAD_REQUEST, "잘못된 정답 인덱스", "정답 인덱스는 선택지 범위 내에 있어야 합니다.");
+    INVALID_CHOICE_INDEX(HttpStatus.BAD_REQUEST, "잘못된 정답 인덱스", "정답 인덱스는 선택지 범위 내에 있어야 합니다."),
+    ROOM_ACCESS_DENIED(HttpStatus.FORBIDDEN, "스터디룸 접근 권한 없음", "해당 스터디룸의 문제를 풀 수 있는 권한이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String title;

@@ -66,6 +66,17 @@ public class ProblemReviewState extends BaseTimeEntity {
     @Column(name = "today_review_first_attempt_date")
     private LocalDate todayReviewFirstAttemptDate;
 
+    /**
+     * 이메일 알림 수신 여부
+     * - true: 복습 알림 메일 받기
+     * - false: 복습 알림 메일 받지 않기
+     * - 본인이 생성한 문제는 항상 true (필수)
+     * - 그룹방 타인 문제는 첫 풀이 시 설정 가능
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean receiveEmailNotification = Boolean.TRUE;
+
     public void updateGate(ReviewGate gate, LocalDate nextDate) {
         this.gate = gate;
         this.nextReviewDate = nextDate;

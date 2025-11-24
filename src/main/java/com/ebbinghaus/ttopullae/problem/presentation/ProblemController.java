@@ -44,7 +44,8 @@ public class ProblemController implements ProblemControllerDocs {
         ProblemSubmitCommand command = new ProblemSubmitCommand(
                 userId,
                 problemId,
-                request.answer()
+                request.answer(),
+                request.receiveEmailNotification()
         );
 
         ProblemSubmitResult result = problemService.submitProblemAnswer(command);

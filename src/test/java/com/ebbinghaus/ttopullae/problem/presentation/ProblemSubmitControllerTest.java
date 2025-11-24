@@ -123,6 +123,7 @@ class ProblemSubmitControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "3");  // 정답
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
@@ -166,6 +167,7 @@ class ProblemSubmitControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "true");  // 오답 (정답은 false)
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
@@ -205,6 +207,7 @@ class ProblemSubmitControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "Garbage Collector");  // 정답
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
@@ -266,6 +269,7 @@ class ProblemSubmitControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "1");  // 정답
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
@@ -313,6 +317,7 @@ class ProblemSubmitControllerTest {
 
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "3");
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
@@ -328,6 +333,7 @@ class ProblemSubmitControllerTest {
         // Given
         Map<String, Object> request = new HashMap<>();
         request.put("answer", "3");
+        request.put("receiveEmailNotification", true);
 
         // When & Then
         mockMvc.perform(post("/api/problems/{problemId}/submit", 99999L)

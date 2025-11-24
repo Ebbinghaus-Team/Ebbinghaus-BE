@@ -13,6 +13,7 @@ import com.ebbinghaus.ttopullae.problem.exception.ProblemException;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
 import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomRepository;
+import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomMemberRepository;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
 import com.ebbinghaus.ttopullae.user.exception.UserException;
@@ -38,6 +39,7 @@ public class ProblemService {
     private final ProblemReviewStateRepository problemReviewStateRepository;
     private final ProblemAttemptRepository problemAttemptRepository;
     private final StudyRoomRepository studyRoomRepository;
+    private final StudyRoomMemberRepository studyRoomMemberRepository;
     private final UserRepository userRepository;
     private final AiGradingService aiGradingService;
 
@@ -210,6 +212,7 @@ public class ProblemService {
                     .gate(ReviewGate.GATE_1)
                     .nextReviewDate(LocalDate.now().plusDays(1))
                     .reviewCount(0)
+                    .receiveEmailNotification(true)  // 본인이 만든 문제는 무조건 이메일 알림 수신
                     .build();
 
             problemReviewStateRepository.save(reviewState);
@@ -225,6 +228,9 @@ public class ProblemService {
         Problem problem = findProblemById(command.problemId());
         LocalDate today = LocalDate.now();
 
+        // 그룹 스터디룸 접근 권한 검증
+        validateStudyRoomAccess(user, problem);
+
         // ReviewState 조회 또는 생성 (그룹방 타인 문제)
         Optional<ProblemReviewState> optionalReviewState =
                 problemReviewStateRepository.findByUserAndProblem(user, problem);
@@ -234,7 +240,7 @@ public class ProblemService {
 
         if (optionalReviewState.isEmpty()) {
             // 그룹방 타인 문제 첫 풀이: ReviewState 생성
-            reviewState = createReviewStateForGroupProblem(user, problem, today);
+            reviewState = createReviewStateForGroupProblem(user, problem, today, command.receiveEmailNotification());
             isNewReviewState = true;
         } else {
             reviewState = optionalReviewState.get();
@@ -283,7 +289,11 @@ public class ProblemService {
     /**
      * 그룹방 타인 문제 첫 풀이 시 ReviewState 생성
      */
-    private ProblemReviewState createReviewStateForGroupProblem(User user, Problem problem, LocalDate today) {
+    private ProblemReviewState createReviewStateForGroupProblem(User user, Problem problem, LocalDate today, Boolean receiveEmailNotification) {
+        // 본인이 만든 문제는 무조건 이메일 알림 수신
+        boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
+        boolean shouldReceiveEmail = isOwnProblem || (receiveEmailNotification != null && receiveEmailNotification);
+
         ProblemReviewState reviewState = ProblemReviewState.builder()
                 .user(user)
                 .problem(problem)
@@ -293,6 +303,7 @@ public class ProblemService {
                 .todayReviewIncludedDate(null)
                 .todayReviewIncludedGate(null)
                 .todayReviewFirstAttemptDate(null)
+                .receiveEmailNotification(shouldReceiveEmail)
                 .build();
 
         return problemReviewStateRepository.save(reviewState);
@@ -332,9 +343,9 @@ public class ProblemService {
         if (answer == null || answer.isBlank()) {
             return false;
         }
-        // 대소문자 무시, 앞뒤 공백 제거 후 비교
-        String normalizedAnswer = answer.trim().toLowerCase();
-        String correctAnswer = problem.getAnswerText().trim().toLowerCase();
+        // 대소문자 무시, 모든 공백 제거 후 비교
+        String normalizedAnswer = answer.replaceAll("\\s+", "").toLowerCase();
+        String correctAnswer = problem.getAnswerText().replaceAll("\\s+", "").toLowerCase();
         return normalizedAnswer.equals(correctAnswer);
     }
 
@@ -494,5 +505,32 @@ public class ProblemService {
                 isFirstAttempt,
                 isReviewStateChanged
         );
+    }
+
+    /**
+     * 그룹 스터디룸 접근 권한 검증
+     * - 개인 스터디룸: 소유자만 접근 가능
+     * - 그룹 스터디룸: 소유자 또는 활성 멤버만 접근 가능
+     */
+    private void validateStudyRoomAccess(User user, Problem problem) {
+        StudyRoom studyRoom = problem.getStudyRoom();
+
+        // 개인 스터디룸인 경우: 소유자만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.PERSONAL) {
+            if (!studyRoom.getOwner().getUserId().equals(user.getUserId())) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
+
+        // 그룹 스터디룸인 경우: 소유자 또는 활성 멤버만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.GROUP) {
+            boolean isOwner = studyRoom.getOwner().getUserId().equals(user.getUserId());
+            boolean isMember = studyRoomMemberRepository
+                    .existsByUserAndStudyRoomAndActive(user, studyRoom, true);
+
+            if (!isOwner && !isMember) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
     }
 }
