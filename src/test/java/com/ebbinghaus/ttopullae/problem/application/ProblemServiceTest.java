@@ -4,10 +4,7 @@ import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
 import com.ebbinghaus.ttopullae.problem.domain.*;
-import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemChoiceRepository;
-import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemKeywordRepository;
-import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
-import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.*;
 import com.ebbinghaus.ttopullae.problem.exception.ProblemException;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
@@ -46,6 +43,9 @@ class ProblemServiceTest {
 
     @Mock
     private ProblemReviewStateRepository problemReviewStateRepository;
+
+    @Mock
+    private ProblemAttemptRepository problemAttemptRepository;
 
     @Mock
     private StudyRoomRepository studyRoomRepository;
@@ -492,6 +492,9 @@ class ProblemServiceTest {
 
         given(problemReviewStateRepository.findTodaysReviewProblems(userId, today, null))
                 .willReturn(reviewStates);
+        given(problemAttemptRepository.findTodaysFirstAttemptsByUserAndProblems(
+                any(Long.class), anyList(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of());
 
         com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand command =
                 new com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand(userId, filter);
@@ -561,6 +564,9 @@ class ProblemServiceTest {
 
         given(problemReviewStateRepository.findTodaysReviewProblems(userId, today, ReviewGate.GATE_1))
                 .willReturn(reviewStates);
+        given(problemAttemptRepository.findTodaysFirstAttemptsByUserAndProblems(
+                any(Long.class), anyList(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of());
 
         com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand command =
                 new com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand(userId, filter);
@@ -624,6 +630,9 @@ class ProblemServiceTest {
 
         given(problemReviewStateRepository.findTodaysReviewProblems(userId, today, ReviewGate.GATE_2))
                 .willReturn(reviewStates);
+        given(problemAttemptRepository.findTodaysFirstAttemptsByUserAndProblems(
+                any(Long.class), anyList(), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .willReturn(List.of());
 
         com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand command =
                 new com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand(userId, filter);

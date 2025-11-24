@@ -2,9 +2,11 @@ package com.ebbinghaus.ttopullae.problem.presentation;
 
 import com.ebbinghaus.ttopullae.global.util.JwtTokenProvider;
 import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemType;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -53,6 +55,9 @@ class ReviewControllerTest {
 
     @Autowired
     private ProblemReviewStateRepository problemReviewStateRepository;
+
+    @Autowired
+    private ProblemAttemptRepository problemAttemptRepository;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -133,6 +138,14 @@ class ReviewControllerTest {
                 .build();
         problemReviewStateRepository.save(reviewState2);
 
+        // 문제 2의 오늘 풀이 기록 생성 (정답)
+        ProblemAttempt attempt2 = ProblemAttempt.builder()
+                .user(testUser)
+                .problem(problem2)
+                .isCorrect(true)
+                .build();
+        problemAttemptRepository.save(attempt2);
+
         // 스냅샷 생성 (배치 시뮬레이션)
         problemReviewStateRepository.snapshotTodayReviewProblems(today);
 
@@ -153,9 +166,11 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.problems[0].question").value("자바의 접근 제어자가 아닌 것은?"))
                 .andExpect(jsonPath("$.problems[0].problemType").value("MCQ"))
                 .andExpect(jsonPath("$.problems[0].gate").value("GATE_1"))
+                .andExpect(jsonPath("$.problems[0].attemptStatus").value("NOT_ATTEMPTED"))
                 .andExpect(jsonPath("$.problems[1].problemId").value(problem2.getProblemId()))
                 .andExpect(jsonPath("$.problems[1].problemType").value("SHORT"))
-                .andExpect(jsonPath("$.problems[1].gate").value("GATE_2"));
+                .andExpect(jsonPath("$.problems[1].gate").value("GATE_2"))
+                .andExpect(jsonPath("$.problems[1].attemptStatus").value("CORRECT"));
     }
 
     @Test
