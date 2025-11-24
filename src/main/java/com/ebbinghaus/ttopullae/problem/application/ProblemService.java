@@ -244,7 +244,7 @@ public class ProblemService {
         boolean isCorrect = gradeAnswer(problem, command.answer());
         String aiFeedback = null;
 
-        if (problem.getProblemType() == ProblemType.ESSAY) {
+        if (problem.getProblemType() == ProblemType.SUBJECTIVE) {
             aiFeedback = gradeEssayWithAi(problem, command.answer());
         }
 
@@ -303,10 +303,10 @@ public class ProblemService {
      */
     private boolean gradeAnswer(Problem problem, String answer) {
         return switch (problem.getProblemType()) {
-            case MULTIPLE_CHOICE -> gradeMultipleChoice(problem, answer);
-            case TRUE_FALSE -> gradeTrueFalse(problem, answer);
-            case SHORT_ANSWER -> gradeShortAnswer(problem, answer);
-            case ESSAY -> gradeEssay(problem, answer);
+            case MCQ -> gradeMultipleChoice(problem, answer);
+            case OX -> gradeTrueFalse(problem, answer);
+            case SHORT -> gradeShortAnswer(problem, answer);
+            case SUBJECTIVE -> gradeEssay(problem, answer);
         };
     }
 
@@ -440,21 +440,21 @@ public class ProblemService {
 
         // 답안 유형별 저장
         switch (problem.getProblemType()) {
-            case MULTIPLE_CHOICE -> {
+            case MCQ -> {
                 try {
                     choiceIndex = Integer.parseInt(answer);
                 } catch (NumberFormatException e) {
                     // 파싱 실패 시 null 유지
                 }
             }
-            case TRUE_FALSE -> {
+            case OX -> {
                 try {
                     boolAnswer = Boolean.parseBoolean(answer);
                 } catch (Exception e) {
                     // 파싱 실패 시 null 유지
                 }
             }
-            case SHORT_ANSWER, ESSAY -> textAnswer = answer;
+            case SHORT, SUBJECTIVE -> textAnswer = answer;
         }
 
         ProblemAttempt attempt = ProblemAttempt.builder()
