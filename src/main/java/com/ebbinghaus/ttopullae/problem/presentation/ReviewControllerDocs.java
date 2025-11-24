@@ -28,6 +28,12 @@ public interface ReviewControllerDocs {
             **문제 목록**:
             - 오늘 복습 대상 문제들 (관문 필터 적용 가능)
             - GRADUATED 문제도 오늘 졸업한 경우 목록에 포함됩니다.
+            - 각 문제의 오늘 풀이 상태 (attemptStatus) 포함
+
+            **풀이 상태 (attemptStatus)**:
+            - NOT_ATTEMPTED: 아직 풀지 않음
+            - CORRECT: 정답
+            - INCORRECT: 오답
 
             **필터 옵션**:
             - ALL: 모든 관문 (GATE_1 + GATE_2)
@@ -58,14 +64,16 @@ public interface ReviewControllerDocs {
                               "question": "자바의 접근 제어자 종류는?",
                               "problemType": "MCQ",
                               "gate": "GATE_1",
-                              "nextReviewDate": "2025-01-24"
+                              "nextReviewDate": "2025-01-24",
+                              "attemptStatus": "NOT_ATTEMPTED"
                             },
                             {
                               "problemId": 2,
                               "question": "JPA의 영속성 컨텍스트란?",
                               "problemType": "SUBJECTIVE",
                               "gate": "GATE_2",
-                              "nextReviewDate": "2025-01-24"
+                              "nextReviewDate": "2025-01-24",
+                              "attemptStatus": "CORRECT"
                             }
                           ]
                         }

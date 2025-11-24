@@ -36,7 +36,8 @@ public record TodayReviewResponse(
         String question,
         String problemType,
         String gate,
-        String nextReviewDate
+        String nextReviewDate,
+        String attemptStatus
     ) {
         public static TodayReviewProblemDto from(TodayReviewResult.TodayReviewProblemInfo info) {
             return new TodayReviewProblemDto(
@@ -44,7 +45,8 @@ public record TodayReviewResponse(
                 info.question(),
                 info.problemType().name(),
                 info.gate().name(),
-                info.nextReviewDate() != null ? info.nextReviewDate().toString() : null
+                info.nextReviewDate() != null ? info.nextReviewDate().toString() : null,
+                info.attemptStatus().name()
             );
         }
     }
