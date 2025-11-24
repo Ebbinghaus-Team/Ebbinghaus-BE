@@ -60,7 +60,7 @@ public record TodayReviewResult(
                 problem.getProblemId(),
                 problem.getQuestion(),
                 problem.getProblemType(),
-                reviewState.getGate(),
+                reviewState.getTodayReviewIncludedGate(),
                 reviewState.getNextReviewDate()
             );
         }
