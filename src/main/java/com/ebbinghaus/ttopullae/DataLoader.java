@@ -1,7 +1,17 @@
 package com.ebbinghaus.ttopullae;
 
-import com.ebbinghaus.ttopullae.problem.domain.*;
-import com.ebbinghaus.ttopullae.problem.domain.repository.*;
+import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemChoice;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemKeyword;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemType;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
+import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemChoiceRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemKeywordRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoomMember;
@@ -105,6 +115,8 @@ public class DataLoader implements CommandLineRunner {
         StudyRoomMember member = StudyRoomMember.builder()
                 .studyRoom(groupRoom)
                 .user(user2)
+                // active 컬럼이 NOT NULL이면 여기서 기본값 세팅하는 게 안전함
+                // .active(true)
                 .build();
         studyRoomMemberRepository.save(member);
 
@@ -236,7 +248,7 @@ public class DataLoader implements CommandLineRunner {
                 .user(user1)
                 .problem(problem5)
                 .gate(ReviewGate.GRADUATED)
-                .nextReviewDate(null)
+                .nextReviewDate(today) // ★ 수정: null → today (NOT NULL 제약 회피)
                 .reviewCount(3)
                 .todayReviewIncludedDate(null)
                 .todayReviewIncludedGate(null)
@@ -275,8 +287,8 @@ public class DataLoader implements CommandLineRunner {
 
     // 객관식 문제 생성 헬퍼 메서드
     private Problem createMultipleChoiceProblem(User creator, StudyRoom room,
-                                                 String question, String explanation,
-                                                 int correctIndex) {
+            String question, String explanation,
+            int correctIndex) {
         return Problem.builder()
                 .creator(creator)
                 .studyRoom(room)
@@ -289,8 +301,8 @@ public class DataLoader implements CommandLineRunner {
 
     // OX 문제 생성 헬퍼 메서드
     private Problem createTrueFalseProblem(User creator, StudyRoom room,
-                                           String question, String explanation,
-                                           boolean answer) {
+            String question, String explanation,
+            boolean answer) {
         return Problem.builder()
                 .creator(creator)
                 .studyRoom(room)
@@ -303,8 +315,8 @@ public class DataLoader implements CommandLineRunner {
 
     // 단답형 문제 생성 헬퍼 메서드
     private Problem createShortAnswerProblem(User creator, StudyRoom room,
-                                             String question, String explanation,
-                                             String answer) {
+            String question, String explanation,
+            String answer) {
         return Problem.builder()
                 .creator(creator)
                 .studyRoom(room)
@@ -317,8 +329,8 @@ public class DataLoader implements CommandLineRunner {
 
     // 서술형 문제 생성 헬퍼 메서드
     private Problem createEssayProblem(User creator, StudyRoom room,
-                                       String question, String explanation,
-                                       String modelAnswer) {
+            String question, String explanation,
+            String modelAnswer) {
         return Problem.builder()
                 .creator(creator)
                 .studyRoom(room)
