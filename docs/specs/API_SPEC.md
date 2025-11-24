@@ -1291,6 +1291,12 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "MCQ" |
 | gate | String | 현재 복습 관문 (GATE_1, GATE_2, GRADUATED) | "GATE_1" |
 | nextReviewDate | String (ISO Date) | 다음 복습 예정일 (YYYY-MM-DD) | "2025-01-24" |
+| attemptStatus | String | 오늘 풀이 상태 (NOT_ATTEMPTED, CORRECT, INCORRECT) | "NOT_ATTEMPTED" |
+
+**attemptStatus 설명**:
+- `NOT_ATTEMPTED`: 아직 풀지 않은 문제
+- `CORRECT`: 오늘 첫 시도에서 정답을 맞힌 문제
+- `INCORRECT`: 오늘 첫 시도에서 오답을 제출한 문제
 
 ##### Response Example (문제 있음)
 
@@ -1308,35 +1314,40 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "question": "자바의 접근 제어자가 아닌 것은?",
       "problemType": "MCQ",
       "gate": "GATE_1",
-      "nextReviewDate": "2025-01-24"
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "NOT_ATTEMPTED"
     },
     {
       "problemId": 2,
       "question": "JVM은 Java Virtual Machine의 약자이다.",
       "problemType": "OX",
       "gate": "GATE_1",
-      "nextReviewDate": "2025-01-24"
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "CORRECT"
     },
     {
       "problemId": 3,
       "question": "JPA의 영속성 컨텍스트란?",
       "problemType": "SHORT",
       "gate": "GATE_2",
-      "nextReviewDate": "2025-01-24"
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "INCORRECT"
     },
     {
       "problemId": 4,
       "question": "DDD의 핵심 개념에 대해 설명하시오.",
       "problemType": "SUBJECTIVE",
       "gate": "GATE_2",
-      "nextReviewDate": "2025-01-24"
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "NOT_ATTEMPTED"
     },
     {
       "problemId": 5,
       "question": "Spring IoC란 무엇인가?",
       "problemType": "SUBJECTIVE",
       "gate": "GRADUATED",
-      "nextReviewDate": null
+      "nextReviewDate": null,
+      "attemptStatus": "CORRECT"
     }
   ]
 }
