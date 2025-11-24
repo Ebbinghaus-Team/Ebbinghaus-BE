@@ -76,6 +76,10 @@ public class ProblemReviewState extends BaseTimeEntity {
         this.reviewCount++;
     }
 
+    public void recordFirstAttemptToday(LocalDate today) {
+        this.todayReviewFirstAttemptDate = today;
+    }
+
     /**
      * 오늘의 복습 문제 첫 시도 여부 판단
      */
