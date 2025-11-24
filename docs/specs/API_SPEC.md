@@ -1,8 +1,8 @@
 # API 명세서
 
-> 작성일: 2025-01-18
-> 버전: v2.0
-> **변경사항**: JWT 쿠키 기반 인증 시스템 도입
+> 작성일: 2025-01-24
+> 버전: v2.1
+> **변경사항**: 문제 풀이 제출 API 추가
 
 ## 목차
 
@@ -16,6 +16,7 @@
 5. [AI 채점 테스트 API](#5-ai-채점-테스트-api)
 6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
 7. [오늘의 복습 문제 조회 API](#7-오늘의-복습-문제-조회-api)
+8. [문제 풀이 제출 API](#8-문제-풀이-제출-api)
 
 ---
 
@@ -1481,3 +1482,251 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **인덱스**:
 - `(user_id, today_review_included_date)`: 오늘의 복습 쿼리 최적화
+
+---
+
+## 8. 문제 풀이 제출 API
+
+### 8.1. 기본 정보
+
+- **Endpoint**: `POST /api/problems/{problemId}/submit`
+- **설명**: 문제를 풀고 답안을 제출하여 채점 결과와 복습 상태를 반환받습니다.
+- **인증**: 필수 (JWT 쿠키)
+
+### 8.2. Request
+
+#### Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| problemId | Long | O | 문제 ID |
+
+#### Headers
+
+```
+Content-Type: application/json
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### Body
+
+| 필드 | 타입 | 필수 | 설명 | 예시 |
+|------|------|------|------|------|
+| answer | String | O | 제출 답안 | "3" (객관식), "true" (OX), "Garbage Collector" (단답형/서술형) |
+
+**답안 형식:**
+- **객관식 (MCQ)**: 선택지 인덱스 (0부터 시작, 문자열로 전달)
+- **OX (TRUE_FALSE)**: "true" 또는 "false"
+- **단답형 (SHORT_ANSWER)**: 답안 텍스트
+- **서술형 (ESSAY)**: 답안 텍스트
+
+#### Request Example
+
+```json
+{
+  "answer": "3"
+}
+```
+
+### 8.3. Response
+
+#### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| isCorrect | Boolean | 채점 결과 (정답 여부) | true |
+| explanation | String | 문제 해설 | "public은 모든 클래스에서 접근 가능합니다." |
+| aiFeedback | String | AI 피드백 (서술형만, 나머지는 null) | "키워드를 모두 포함하여..." |
+| currentGate | String | 현재 복습 관문 | "GATE_2", "GRADUATED" |
+| reviewCount | Integer | 복습 완료 횟수 | 1 |
+| nextReviewDate | String | 다음 복습 예정일 (yyyy-MM-dd, 졸업 시 null) | "2025-01-31" |
+| isFirstAttempt | Boolean | 오늘의 복습 첫 시도 여부 | true |
+| isReviewStateChanged | Boolean | 복습 상태 변경 여부 (승급/강등) | true |
+
+#### 시나리오별 Response Examples
+
+**8.3.1. 오늘의 복습 문제 첫 시도 - 정답 (GATE_1 → GATE_2 승급)**
+
+```json
+{
+  "isCorrect": true,
+  "explanation": "public은 모든 클래스에서 접근 가능합니다.",
+  "aiFeedback": null,
+  "currentGate": "GATE_2",
+  "reviewCount": 1,
+  "nextReviewDate": "2025-01-31",
+  "isFirstAttempt": true,
+  "isReviewStateChanged": true
+}
+```
+
+**8.3.2. 오늘의 복습 문제 첫 시도 - 오답 (GATE_2 → GATE_1 강등)**
+
+```json
+{
+  "isCorrect": false,
+  "explanation": "Java는 인터페이스를 통한 다중 구현만 지원하며, 클래스 다중 상속은 지원하지 않습니다.",
+  "aiFeedback": null,
+  "currentGate": "GATE_1",
+  "reviewCount": 2,
+  "nextReviewDate": "2025-01-25",
+  "isFirstAttempt": true,
+  "isReviewStateChanged": true
+}
+```
+
+**8.3.3. 오늘의 복습 문제 재시도 (상태 불변)**
+
+```json
+{
+  "isCorrect": true,
+  "explanation": "Garbage Collector가 Heap 영역의 사용하지 않는 객체를 자동으로 정리합니다.",
+  "aiFeedback": null,
+  "currentGate": "GATE_2",
+  "reviewCount": 2,
+  "nextReviewDate": "2025-01-24",
+  "isFirstAttempt": false,
+  "isReviewStateChanged": false
+}
+```
+
+**8.3.4. 서술형 문제 AI 채점**
+
+```json
+{
+  "isCorrect": true,
+  "explanation": "IoC는 객체의 생성과 의존성 관리를 개발자가 아닌 프레임워크(Spring Container)가 담당하는 설계 원칙입니다.",
+  "aiFeedback": "필수 키워드를 모두 포함하고 정확하게 설명하셨습니다. 제어의 역전, Spring Container, 객체 생성 개념이 명확히 드러나 있습니다.",
+  "currentGate": "GATE_2",
+  "reviewCount": 1,
+  "nextReviewDate": "2025-01-31",
+  "isFirstAttempt": true,
+  "isReviewStateChanged": true
+}
+```
+
+**8.3.5. 비복습 문제 풀이 (미래 문제 또는 졸업 문제)**
+
+```json
+{
+  "isCorrect": false,
+  "explanation": "200번대는 성공, 300번대는 리다이렉션, 400번대는 클라이언트 오류, 500번대는 서버 오류를 나타냅니다.",
+  "aiFeedback": null,
+  "currentGate": "GRADUATED",
+  "reviewCount": 3,
+  "nextReviewDate": null,
+  "isFirstAttempt": false,
+  "isReviewStateChanged": false
+}
+```
+
+### 8.4. Error Responses
+
+#### 400 Bad Request - 답안 누락
+
+```json
+{
+  "title": "유효하지 않은 입력값",
+  "status": 400,
+  "detail": "answer: 답안은 필수입니다",
+  "instance": "/api/problems/1/submit"
+}
+```
+
+#### 401 Unauthorized - 인증 실패
+
+```json
+{
+  "title": "토큰을 찾을 수 없음",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/problems/1/submit"
+}
+```
+
+#### 404 Not Found - 문제를 찾을 수 없음
+
+```json
+{
+  "title": "문제를 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 ID의 문제가 존재하지 않습니다.",
+  "instance": "/api/problems/999/submit"
+}
+```
+
+### 8.5. 비즈니스 로직
+
+#### 8.5.1. 동작 방식 개요
+
+문제 풀이 제출 API는 설계 문서 `docs/design/today-review-and-problem-submission.md`의 의사 결정 플로우차트를 따릅니다.
+
+```
+[문제 풀이 요청]
+     ↓
+[ReviewState 조회]
+     ↓
+     ├─ 없음? → [ReviewState 생성] → [채점만 제공, 상태 불변]
+     ↓
+     └─ 있음
+          ↓
+    [todayReviewIncludedDate == today?]
+          ↓
+          ├─ NO (비복습 문제) → [채점만 제공, 상태 불변]
+          ↓
+          └─ YES (오늘의 복습 문제)
+               ↓
+         [todayReviewFirstAttemptDate == null OR != today?]
+               ↓
+               ├─ NO (재시도) → [채점만 제공, 상태 불변]
+               ↓
+               └─ YES (첫 시도)
+                    ↓
+              [채점 + 상태 전이 + todayReviewFirstAttemptDate 기록]
+```
+
+#### 8.5.2. 상태 전이 규칙
+
+**첫 시도 정답:**
+- `GATE_1 → GATE_2` (nextReviewDate = today + 7일)
+- `GATE_2 → GRADUATED` (nextReviewDate = null)
+
+**첫 시도 오답:**
+- `GATE_1 → GATE_1` 유지 (nextReviewDate = today + 1일)
+- `GATE_2 → GATE_1` 강등 (nextReviewDate = today + 1일)
+
+**재시도 (2회차 이상):**
+- 모든 경우 상태 불변 (채점만 제공)
+
+#### 8.5.3. 그룹방 타인 문제 첫 풀이
+
+그룹방에서 다른 멤버가 만든 문제를 처음 풀 때:
+1. `ProblemReviewState` 자동 생성
+2. gate = `GATE_1`, nextReviewDate = `today + 1일`
+3. 채점만 제공 (상태 전이 없음)
+4. 다음 날부터 "오늘의 복습 문제"로 조회됨
+
+#### 8.5.4. 채점 로직
+
+- **객관식 (MCQ)**: 제출한 선택지 인덱스와 정답 인덱스 비교
+- **OX (TRUE_FALSE)**: boolean 값 비교
+- **단답형 (SHORT_ANSWER)**: 대소문자 무시, 앞뒤 공백 제거 후 문자열 비교
+- **서술형 (ESSAY)**: AI 채점 서비스 (`AiGradingService`) 호출하여 키워드 기반 채점
+
+### 8.6. 주요 특징
+
+1. **오늘의 복습 문제와 비복습 문제 구분**
+   - 오늘의 복습 문제: 매일 자정 스냅샷된 문제 (`todayReviewIncludedDate == today`)
+   - 비복습 문제: 미래에 복습할 문제 또는 졸업한 문제
+
+2. **첫 시도 기준 상태 전이**
+   - 오늘의 복습 문제를 처음 풀었을 때만 상태 변경
+   - 이후 재시도는 채점만 제공하여 학습 진행 일관성 유지
+
+3. **다양한 문제 유형 지원**
+   - 객관식, OX, 단답형은 자동 채점
+   - 서술형은 AI 채점 서비스 통합
+
+4. **풀이 이력 기록**
+   - 모든 시도는 `problem_attempts` 테이블에 기록
+   - 정답/오답, 제출 답안, AI 피드백 저장
