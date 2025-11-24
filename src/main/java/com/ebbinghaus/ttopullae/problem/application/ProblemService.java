@@ -1,13 +1,18 @@
 package com.ebbinghaus.ttopullae.problem.application;
 
 import com.ebbinghaus.ttopullae.global.exception.ApplicationException;
+import com.ebbinghaus.ttopullae.global.exception.CommonException;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
+import com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewCommand;
+import com.ebbinghaus.ttopullae.problem.application.dto.TodayReviewResult;
 import com.ebbinghaus.ttopullae.problem.domain.Problem;
+import com.ebbinghaus.ttopullae.problem.domain.ProblemAttempt;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemChoice;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemKeyword;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemChoiceRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemKeywordRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
@@ -24,8 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +43,7 @@ public class ProblemService {
     private final ProblemChoiceRepository problemChoiceRepository;
     private final ProblemKeywordRepository problemKeywordRepository;
     private final ProblemReviewStateRepository problemReviewStateRepository;
+    private final ProblemAttemptRepository problemAttemptRepository;
     private final StudyRoomRepository studyRoomRepository;
     private final UserRepository userRepository;
 
@@ -52,6 +61,51 @@ public class ProblemService {
         initializeReviewState(user, savedProblem, studyRoom);
 
         return ProblemCreateResult.from(savedProblem);
+    }
+
+    /**
+     * 오늘의 복습 문제 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public TodayReviewResult getTodayReviewProblems(TodayReviewCommand command) {
+        LocalDate today = LocalDate.now();
+
+        // 필터 파라미터 변환
+        ReviewGate targetGate = parseFilterToGate(command.filter());
+
+        // 복습 상태 조회 (Problem 엔티티 fetch join)
+        List<ProblemReviewState> reviewStates = problemReviewStateRepository
+            .findTodaysReviewProblems(command.userId(), today, targetGate);
+
+        // 오늘의 첫 번째 풀이 기록 조회 (N+1 방지)
+        List<ProblemAttempt> todaysAttempts = Collections.emptyList();
+        if (!reviewStates.isEmpty()) {
+            List<Long> problemIds = reviewStates.stream()
+                .map(rs -> rs.getProblem().getProblemId())
+                .toList();
+
+            LocalDateTime todayStart = LocalDateTime.of(today, LocalTime.MIN);
+            LocalDateTime tomorrowStart = LocalDateTime.of(today.plusDays(1), LocalTime.MIN);
+
+            todaysAttempts = problemAttemptRepository.findTodaysFirstAttemptsByUserAndProblems(
+                command.userId(),
+                problemIds,
+                todayStart,
+                tomorrowStart
+            );
+        }
+
+        // DTO 변환 (대시보드 통계 계산 및 풀이 상태 포함)
+        return TodayReviewResult.of(reviewStates, today, todaysAttempts);
+    }
+
+    private ReviewGate parseFilterToGate(String filter) {
+        return switch (filter) {
+            case "GATE_1" -> ReviewGate.GATE_1;
+            case "GATE_2" -> ReviewGate.GATE_2;
+            case "ALL" -> null;
+            default -> throw new ApplicationException(CommonException.INVALID_QUERY_PARAMETER);
+        };
     }
 
     private User findUserById(Long userId) {

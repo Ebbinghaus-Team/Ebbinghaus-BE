@@ -15,6 +15,7 @@
 4. [문제 생성 API](#4-문제-생성-api)
 5. [AI 채점 테스트 API](#5-ai-채점-테스트-api)
 6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
+7. [오늘의 복습 문제 조회 API](#7-오늘의-복습-문제-조회-api)
 
 ---
 
@@ -1217,3 +1218,266 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - **복습 상태 기반**: 복습 상태(`ProblemReviewState`)가 등록되지 않은 문제는 목록에 포함되지 않습니다.
 - **필터 기본값**: `filter` 파라미터를 생략하면 `"ALL"`이 기본값으로 적용됩니다.
 - **lastReviewedAt null 가능**: 한 번도 풀지 않은 문제는 `lastReviewedAt` 필드가 `null`입니다.
+
+---
+
+## 7. 오늘의 복습 문제 조회 API
+
+### 7.1. 기본 정보
+
+- **Endpoint**: `GET /api/review/today`
+- **설명**: 사용자가 오늘 복습해야 할 문제 목록과 대시보드 통계를 조회합니다. 에빙하우스 망각곡선 기반 간헐적 복습 시스템의 핵심 기능으로, 1일차 복습(GATE_1)과 7일차 복습(GATE_2) 문제를 관문별로 필터링할 수 있습니다.
+- **인증**: **필수** (JWT 쿠키 인증)
+
+### 7.2. Request
+
+#### 7.2.1. Headers
+
+```
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### 7.2.2. Query Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 기본값 | 가능한 값 |
+|---------|------|------|------|--------|----------|
+| filter | String | X | 복습 관문 필터 | "ALL" | "ALL", "GATE_1", "GATE_2" |
+
+**필터 설명**:
+- `ALL`: 모든 관문의 복습 문제 조회 (GATE_1 + GATE_2, 기본값)
+- `GATE_1`: 1일차 복습 관문의 문제만 조회
+- `GATE_2`: 7일차 복습 관문의 문제만 조회
+
+#### 7.2.3. Request Example
+
+```http
+GET /api/review/today?filter=ALL
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+```http
+GET /api/review/today?filter=GATE_1
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 7.3. Response
+
+#### 7.3.1. Success Response (200 OK)
+
+##### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| dashboard | DashboardInfo | 대시보드 통계 정보 | {...} |
+| problems | List\<TodayReviewProblemInfo\> | 오늘의 복습 문제 목록 | [...] |
+
+##### DashboardInfo 필드
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| totalCount | Integer | 오늘 복습 대상 문제 총 개수 | 5 |
+| completedCount | Integer | 완료한 문제 개수 | 2 |
+| incompletedCount | Integer | 미완료 문제 개수 | 3 |
+| progressRate | Double | 진행률 (0.0 ~ 100.0) | 40.0 |
+
+**완료 기준**: 오늘 날짜에 첫 시도(`todayReviewFirstAttemptDate`)를 완료한 문제
+
+##### TodayReviewProblemInfo 필드
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| problemId | Long | 문제 ID | 1 |
+| question | String | 문제 내용 | "자바의 접근 제어자가 아닌 것은?" |
+| problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "MCQ" |
+| gate | String | 현재 복습 관문 (GATE_1, GATE_2, GRADUATED) | "GATE_1" |
+| nextReviewDate | String (ISO Date) | 다음 복습 예정일 (YYYY-MM-DD) | "2025-01-24" |
+| attemptStatus | String | 오늘 풀이 상태 (NOT_ATTEMPTED, CORRECT, INCORRECT) | "NOT_ATTEMPTED" |
+
+**attemptStatus 설명**:
+- `NOT_ATTEMPTED`: 아직 풀지 않은 문제
+- `CORRECT`: 오늘 첫 시도에서 정답을 맞힌 문제
+- `INCORRECT`: 오늘 첫 시도에서 오답을 제출한 문제
+
+##### Response Example (문제 있음)
+
+```json
+{
+  "dashboard": {
+    "totalCount": 5,
+    "completedCount": 2,
+    "incompletedCount": 3,
+    "progressRate": 40.0
+  },
+  "problems": [
+    {
+      "problemId": 1,
+      "question": "자바의 접근 제어자가 아닌 것은?",
+      "problemType": "MCQ",
+      "gate": "GATE_1",
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "NOT_ATTEMPTED"
+    },
+    {
+      "problemId": 2,
+      "question": "JVM은 Java Virtual Machine의 약자이다.",
+      "problemType": "OX",
+      "gate": "GATE_1",
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "CORRECT"
+    },
+    {
+      "problemId": 3,
+      "question": "JPA의 영속성 컨텍스트란?",
+      "problemType": "SHORT",
+      "gate": "GATE_2",
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "INCORRECT"
+    },
+    {
+      "problemId": 4,
+      "question": "DDD의 핵심 개념에 대해 설명하시오.",
+      "problemType": "SUBJECTIVE",
+      "gate": "GATE_2",
+      "nextReviewDate": "2025-01-24",
+      "attemptStatus": "NOT_ATTEMPTED"
+    },
+    {
+      "problemId": 5,
+      "question": "Spring IoC란 무엇인가?",
+      "problemType": "SUBJECTIVE",
+      "gate": "GRADUATED",
+      "nextReviewDate": null,
+      "attemptStatus": "CORRECT"
+    }
+  ]
+}
+```
+
+##### Response Example (빈 목록)
+
+```json
+{
+  "dashboard": {
+    "totalCount": 0,
+    "completedCount": 0,
+    "incompletedCount": 0,
+    "progressRate": 0.0
+  },
+  "problems": []
+}
+```
+
+### 7.4. Error Responses
+
+#### 7.4.1. 400 Bad Request - 잘못된 필터 값
+
+```json
+{
+  "title": "잘못된 요청",
+  "status": 400,
+  "detail": "유효하지 않은 필터 값입니다.",
+  "instance": "/api/review/today"
+}
+```
+
+#### 7.4.2. 401 Unauthorized - 인증 실패
+
+**JWT 토큰 없음**
+```json
+{
+  "title": "토큰을 찾을 수 없음",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/review/today"
+}
+```
+
+**JWT 토큰 유효하지 않음**
+```json
+{
+  "title": "유효하지 않은 토큰",
+  "status": 401,
+  "detail": "토큰이 유효하지 않습니다.",
+  "instance": "/api/review/today"
+}
+```
+
+### 7.5. 비즈니스 로직
+
+#### 7.5.1. 복습 대상 선정 기준
+
+오늘의 복습 문제는 다음 조건 중 하나라도 만족하는 문제입니다:
+
+1. **일반 복습 대상**:
+   - `nextReviewDate`가 오늘 날짜보다 작거나 같은 문제
+   - GATE_1 또는 GATE_2 상태인 문제
+
+2. **목록 일관성 유지 대상**:
+   - 오늘 조회 시점에 목록에 포함된 적이 있는 문제 (`todayReviewIncludedDate = 오늘`)
+   - 오늘 중에 관문이 변경되어도 목록에서 사라지지 않음
+   - 오늘 졸업(GRADUATED)한 문제도 포함됨
+
+#### 7.5.2. 필터링 로직
+
+- **ALL**: GATE_1과 GATE_2 문제 모두 조회 (오늘 졸업한 문제 포함)
+- **GATE_1**: GATE_1 상태이거나, 오늘 GATE_1 상태로 포함된 적이 있는 문제
+- **GATE_2**: GATE_2 상태이거나, 오늘 GATE_2 상태로 포함된 적이 있는 문제
+
+**필터 일관성 보장**:
+- 사용자가 필터를 적용한 후 문제를 풀어서 관문이 변경되어도, 오늘 하루 동안은 해당 필터에서 문제가 사라지지 않습니다.
+- `todayReviewIncludedGate` 필드를 사용하여 원래 속했던 필터에 계속 표시됩니다.
+
+#### 7.5.3. 완료 여부 판단
+
+문제가 "완료"로 간주되는 조건:
+- `todayReviewFirstAttemptDate = 오늘 날짜`
+- 즉, 오늘 첫 번째 시도를 완료한 문제
+- 정답/오답 여부와 관계없이 첫 시도만 했다면 완료로 처리
+
+#### 7.5.4. 처리 순서
+
+1. **인증 검증**
+   - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
+   - 유효하지 않은 토큰인 경우 401 에러 반환
+
+2. **필터 파싱**
+   - `filter` 파라미터를 `ReviewGate` Enum으로 변환
+   - "ALL"인 경우 `null`로 처리 (모든 관문 조회)
+   - 잘못된 필터 값인 경우 400 에러 반환
+
+3. **복습 상태 조회**
+   - `ProblemReviewStateRepository.findTodaysReviewProblems()` 호출
+   - Problem 엔티티를 fetch join하여 N+1 쿼리 방지
+   - 오늘 날짜와 필터 조건을 만족하는 복습 상태 목록 반환
+
+4. **대시보드 통계 계산**
+   - 총 문제 수: 조회된 복습 상태 개수
+   - 완료 수: `todayReviewFirstAttemptDate = 오늘`인 문제 개수
+   - 미완료 수: 총 문제 수 - 완료 수
+   - 진행률: (완료 수 / 총 문제 수) × 100 (소수점 첫째 자리까지)
+
+5. **결과 변환 및 반환**
+   - 조회된 데이터를 Response DTO로 변환
+   - 200 OK 상태 코드와 함께 반환
+
+### 7.6. 주의사항
+
+- **목록 일관성 보장**: 오늘 조회 시점에 목록에 포함된 문제는 하루 동안 사라지지 않습니다.
+- **졸업 문제 포함**: 오늘 졸업한 문제도 목록에 표시되어 완료 통계에 반영됩니다.
+- **복습 이월**: 미완료 복습 문제는 다음 날로 자동 이월됩니다.
+- **일일 제한 없음**: 하루에 무제한으로 복습을 완료할 수 있습니다.
+- **필터 기본값**: `filter` 파라미터를 생략하면 `"ALL"`이 기본값으로 적용됩니다.
+- **개인/그룹 모두 지원**: 개인 공부방과 그룹 스터디의 문제를 모두 포함합니다.
+
+### 7.7. 데이터베이스 스키마 보강
+
+`problem_review_states` 테이블에 다음 필드가 추가되었습니다:
+
+| 컬럼명 | 타입 | NULL | 키 | 설명 |
+|--------|------|------|-----|------|
+| today_review_included_date | DATE | YES | INDEX | 오늘의 복습 목록에 포함된 날짜 |
+| today_review_included_gate | VARCHAR(20) | YES | | 목록 포함 시점의 관문 상태 (필터 일관성) |
+| today_review_first_attempt_date | DATE | YES | | 오늘의 복습 첫 시도 완료 날짜 |
+
+**인덱스**:
+- `(user_id, today_review_included_date)`: 오늘의 복습 쿼리 최적화

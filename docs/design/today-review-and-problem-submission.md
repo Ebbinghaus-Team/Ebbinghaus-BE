@@ -44,14 +44,19 @@
 
 ### 2.1. 복습 문제 셋 판단 기준
 
-**정의**: 다음 조건 중 하나라도 만족하는 문제
+**정의**: 매일 자정에 스냅샷된 문제들
 
 ```
-nextReviewDate <= today  OR  todayReviewIncludedDate = today
+todayReviewIncludedDate = today
 ```
 
-- **`nextReviewDate <= today`**: 아직 풀지 않은 복습 대상 문제
-- **`todayReviewIncludedDate = today`**: 오늘 이미 풀었지만 목록에 유지해야 하는 문제
+**스냅샷 대상** (매일 00:00:00 배치 실행 시):
+- `nextReviewDate <= today` (오늘 또는 과거가 복습날인 문제)
+- `gate != GRADUATED` (졸업하지 않은 문제)
+- `todayReviewIncludedDate != today` (이미 오늘 스냅샷되지 않은 문제)
+
+**자동 이월**:
+- 어제 스냅샷되었으나 풀지 않은 문제는 오늘 배치에서 자동으로 재스냅샷됨
 
 ### 2.2. 필터링 옵션
 
@@ -176,9 +181,9 @@ GATE_2 + 오답 → GATE_1 강등 (nextReviewDate = today + 1일)
 
 ### 4.2. 검토한 설계 방안 (5가지)
 
-#### 방안 1: 자정 배치 처리
+#### 방안 1: 자정 배치 처리 ✅
 - 매일 자정 스케줄러가 스냅샷 저장
-- ❌ 오버엔지니어링, 인프라 의존성 높음
+- ✅ **최종 선택 방안** (하이브리드 접근)
 
 #### 방안 2: 쿼리 기반 해결 (상태 변화 지연)
 - 문제 풀어도 자정까지 상태 업데이트 안 함
@@ -188,9 +193,9 @@ GATE_2 + 오답 → GATE_1 강등 (nextReviewDate = today + 1일)
 - `daily_review_sessions` 테이블 생성
 - ⚠️ 장기적으로 유용하나 MVP에 과함
 
-#### 방안 4: todayReviewIncludedDate 필드 추가 ✅
-- ProblemReviewState에 필드 3개 추가
-- ✅ **MVP 선택 방안**
+#### 방안 4: todayReviewIncludedDate 필드 추가
+- ProblemReviewState에 필드 2개 추가 (Gate는 이미 존재)
+- ⚠️ 초기화 시점 문제 발생 (조회 시마다 초기화 시 복잡도 증가)
 
 #### 방안 5: 프론트엔드 상태 관리
 - 클라이언트 캐싱
@@ -200,325 +205,461 @@ GATE_2 + 오답 → GATE_1 강등 (nextReviewDate = today + 1일)
 
 ## 5. MVP 결정사항
 
-### 5.1. 선택: 필드 3개 추가 방식 ✅
+### 5.1. 선택: 스케줄러 기반 스냅샷 방식 ✅
 
-**추가 필드**:
+**최종 구현 방식**:
+- **매일 자정 00:00:00**에 Spring Scheduler가 오늘의 복습 문제 스냅샷을 생성
+- **벌크 JPQL UPDATE** 쿼리로 성능 최적화
+- **스냅샷 필드**에 현재 상태를 저장하여 하루 동안 일관성 유지
+
+**추가 필드** (ProblemReviewState 엔티티):
 1. `todayReviewIncludedDate` (LocalDate): 오늘의 복습에 포함된 날짜
-2. `todayReviewIncludedGate` (ReviewGate): 오늘의 복습 포함 시점의 관문 상태
+2. `todayReviewIncludedGate` (ReviewGate): 오늘의 복습 포함 시점의 관문 상태 (불변)
 3. `todayReviewFirstAttemptDate` (LocalDate): 오늘의 복습 첫 시도 처리한 날짜
 
 ### 5.2. 선택 이유
-1. **빠른 구현**: 1일 내 구현 가능
-2. **인프라 독립성**: 스케줄러 불필요, 장애 포인트 감소
-3. **충분한 성능**: 현재 규모에서 최적화된 쿼리 성능
-4. **낮은 리스크**: 기존 테이블 활용
-5. **확장 가능성**: 향후 스냅샷 테이블로 전환 가능
+1. **명확한 책임 분리**: 스냅샷 생성(배치) vs 조회(서비스) 로직 분리
+2. **쿼리 단순화**: 복잡한 조건문 제거, 단순 `todayReviewIncludedDate = today` 체크
+3. **성능 최적화**: 벌크 업데이트로 대량 데이터 처리 효율적
+4. **목록 일관성 자동 보장**: 조회 시점마다 초기화 불필요
+5. **이월 로직 단순화**: 스냅샷 조건에 자동 포함, 별도 로직 불필요
+6. **확장 가능성**: 향후 통계 테이블로 전환 시 스케줄러 재활용 가능
 
 ### 5.3. 필드 역할
 
-| 필드 | 역할 | 업데이트 시점 |
-|------|------|--------------|
-| `todayReviewIncludedDate` | 목록 일관성 유지 | 오늘의 복습 문제 첫 시도 시 |
-| `todayReviewIncludedGate` | 필터 일관성 유지 | 오늘의 복습 문제 첫 시도 시 |
-| `todayReviewFirstAttemptDate` | 재시도 판단 | 오늘의 복습 문제 첫 시도 시 |
+| 필드 | 역할 | 업데이트 시점 | 특징 |
+|------|------|--------------|------|
+| `todayReviewIncludedDate` | 목록 일관성 유지 | 매일 자정 배치 | 재스냅샷 가능 (이월) |
+| `todayReviewIncludedGate` | 필터 일관성 유지 | 매일 자정 배치 | **불변** (하루 동안 고정) |
+| `todayReviewFirstAttemptDate` | 재시도 판단 | 문제 첫 풀이 시 | 문제 풀이 로직에서 관리 |
 
 ---
 
 ## 6. 기술 구현 상세
 
-### 6.1. 엔티티 구조
+### 6.1. 스케줄러 구현 (ReviewScheduleService)
+
+**파일**: `src/main/java/com/ebbinghaus/ttopullae/problem/application/ReviewScheduleService.java`
 
 ```java
-@Entity
-@Table(name = "problem_review_states")
-public class ProblemReviewState extends BaseTimeEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long reviewStateId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "problem_id", nullable = false)
-    private Problem problem;
-
-    // ===== 기존 필드 =====
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private ReviewGate gate;
-
-    @Column(nullable = false)
-    private LocalDate nextReviewDate;
-
-    @Column(nullable = false)
-    private int reviewCount = 0;
-
-    // ===== MVP: 오늘의 복습 일관성 필드 =====
-
-    /**
-     * 오늘의 복습 문제에 포함된 날짜
-     * - 값이 오늘이면 → 오늘 복습 대상이었던 문제 (목록 유지)
-     * - null이면 → 오늘 복습 대상 아님
-     */
-    @Column(name = "today_review_included_date")
-    private LocalDate todayReviewIncludedDate;
-
-    /**
-     * 오늘의 복습 포함 시점의 관문 상태
-     * - 문제를 풀어서 gate가 변경되어도 필터 일관성 유지
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "today_review_included_gate", length = 20)
-    private ReviewGate todayReviewIncludedGate;
-
-    /**
-     * 오늘의 복습 첫 시도 처리한 날짜
-     * - 값이 오늘이면 → 이미 첫 시도 완료 (재시도는 상태 불변)
-     * - 다르거나 null이면 → 아직 첫 시도 안 함 (다음 시도가 상태 변화)
-     */
-    @Column(name = "today_review_first_attempt_date")
-    private LocalDate todayReviewFirstAttemptDate;
-
-    /**
-     * 오늘의 복습 문제 첫 시도 여부 판단
-     */
-    public boolean isFirstAttemptToday(LocalDate today) {
-        return todayReviewFirstAttemptDate == null || !todayReviewFirstAttemptDate.equals(today);
-    }
-
-    /**
-     * 오늘의 복습 문제인지 확인
-     */
-    public boolean isTodayReviewProblem(LocalDate today) {
-        return (nextReviewDate != null && !nextReviewDate.isAfter(today))
-                || (todayReviewIncludedDate != null && todayReviewIncludedDate.equals(today));
-    }
-
-    /**
-     * 문제 풀이 결과를 처리하고 복습 상태를 업데이트합니다.
-     *
-     * @param isCorrect 정답 여부
-     * @param today 오늘 날짜
-     * @param isTodayReview 오늘의 복습 문제인지 여부
-     */
-    public void processReviewResult(boolean isCorrect, LocalDate today, boolean isTodayReview) {
-        // 1. 오늘의 복습 문제가 아니면 상태 변화 없음
-        if (!isTodayReview) {
-            return;
-        }
-
-        // 2. 이미 오늘 첫 시도를 처리했으면 상태 변화 없음 (재시도)
-        if (!isFirstAttemptToday(today)) {
-            return;
-        }
-
-        // 3. 첫 시도 처리: 원래 관문 상태 기록
-        this.todayReviewIncludedDate = today;
-        this.todayReviewIncludedGate = this.gate;  // 변경 전 gate 기록
-        this.todayReviewFirstAttemptDate = today;  // 첫 시도 날짜 기록
-
-        // 4. Gate 상태 전이
-        if (isCorrect) {
-            switch (this.gate) {
-                case GATE_1 -> updateGateAndNextReview(ReviewGate.GATE_2, today.plusDays(7));
-                case GATE_2 -> updateGateAndNextReview(ReviewGate.GRADUATED, null);
-                case GRADUATED -> {} // 졸업 상태는 변화 없음
-            }
-        } else {
-            // 오답 시 GATE_1로 강등
-            updateGateAndNextReview(ReviewGate.GATE_1, today.plusDays(1));
-        }
-
-        // 5. 복습 횟수 증가
-        increaseReviewCount();
-    }
-
-    /**
-     * 그룹방 타인 문제 첫 풀이 시 ReviewState 생성
-     */
-    public static ProblemReviewState createForGroupProblem(User user, Problem problem, LocalDate today) {
-        ProblemReviewState reviewState = new ProblemReviewState();
-        reviewState.user = user;
-        reviewState.problem = problem;
-        reviewState.gate = ReviewGate.GATE_1;
-        reviewState.nextReviewDate = today.plusDays(1);
-        reviewState.reviewCount = 0;
-        // 오늘의 복습 필드는 null로 유지 (내일부터 복습 대상)
-        return reviewState;
-    }
-
-    private void updateGateAndNextReview(ReviewGate newGate, LocalDate newNextReviewDate) {
-        this.gate = newGate;
-        this.nextReviewDate = newNextReviewDate;
-    }
-
-    private void increaseReviewCount() {
-        this.reviewCount++;
-    }
-}
-```
-
-### 6.2. 리포지토리 메서드
-
-```java
-@Repository
-public interface ProblemReviewStateRepository extends JpaRepository<ProblemReviewState, Long> {
-
-    /**
-     * 오늘의 복습 문제를 조회합니다.
-     *
-     * 조회 조건:
-     * 1. nextReviewDate <= today (아직 풀지 않은 문제)
-     * 2. OR todayReviewIncludedDate = today (오늘 이미 푼 문제)
-     * 3. gate != GRADUATED (졸업하지 않은 문제)
-     * 4. targetGate 필터:
-     *    - 현재 gate = targetGate (아직 풀지 않은 문제)
-     *    - OR todayReviewIncludedGate = targetGate (오늘 푼 문제)
-     *
-     * @param userId 사용자 ID
-     * @param today 오늘 날짜
-     * @param targetGate 필터할 관문 (null이면 전체 조회)
-     * @return 오늘의 복습 문제 목록
-     */
-    @Query("""
-        SELECT DISTINCT prs FROM ProblemReviewState prs
-        LEFT JOIN FETCH prs.problem p
-        WHERE prs.user.userId = :userId
-          AND prs.gate <> 'GRADUATED'
-          AND (prs.nextReviewDate <= :today OR prs.todayReviewIncludedDate = :today)
-          AND (:targetGate IS NULL
-               OR prs.gate = :targetGate
-               OR (prs.todayReviewIncludedDate = :today AND prs.todayReviewIncludedGate = :targetGate))
-        ORDER BY prs.nextReviewDate ASC
-        """)
-    List<ProblemReviewState> findTodaysReviewProblems(
-        @Param("userId") Long userId,
-        @Param("today") LocalDate today,
-        @Param("targetGate") ReviewGate targetGate
-    );
-
-    /**
-     * 사용자의 특정 문제에 대한 복습 상태 조회
-     */
-    Optional<ProblemReviewState> findByUserIdAndProblemId(Long userId, Long problemId);
-}
-```
-
-### 6.3. 서비스 로직
-
-```java
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class ProblemService {
+public class ReviewScheduleService {
 
-    private final ProblemReviewStateRepository reviewStateRepository;
-    private final ProblemAttemptRepository attemptRepository;
-    private final ProblemRepository problemRepository;
-    private final UserRepository userRepository;
+    private final ProblemReviewStateRepository problemReviewStateRepository;
 
-    /**
-     * 오늘의 복습 문제 목록을 조회합니다.
-     */
-    public TodayReviewResult getTodayReviewProblems(TodayReviewCommand command) {
-        LocalDate today = LocalDate.now();
-
-        // 필터 파라미터 변환
-        ReviewGate targetGate = parseFilterToGate(command.filter());
-
-        // 복습 상태 조회 (Problem 엔티티 fetch join)
-        List<ProblemReviewState> reviewStates = reviewStateRepository
-            .findTodaysReviewProblems(command.userId(), today, targetGate);
-
-        // DTO 변환
-        return TodayReviewResult.of(reviewStates, today);
-    }
-
-    /**
-     * 문제 풀이 결과를 제출하고 복습 상태를 업데이트합니다.
-     */
+    @Scheduled(cron = "0 0 0 * * *")  // 매일 자정 00:00:00
     @Transactional
-    public ProblemSubmitResult submitProblem(ProblemSubmitCommand command) {
+    public void createDailyReviewSnapshot() {
         LocalDate today = LocalDate.now();
-
-        // 1. 문제 조회
-        Problem problem = problemRepository.findById(command.problemId())
-            .orElseThrow(() -> new ApplicationException(ProblemException.PROBLEM_NOT_FOUND));
-
-        // 2. 정답 여부 판단
-        boolean isCorrect = problem.checkAnswer(command.userAnswer());
-
-        // 3. 시도 기록 저장 (모든 경우)
-        ProblemAttempt attempt = ProblemAttempt.create(
-            command.userId(),
-            command.problemId(),
-            command.userAnswer(),
-            isCorrect
-        );
-        attemptRepository.save(attempt);
-
-        // 4. 복습 상태 조회 또는 생성
-        ProblemReviewState reviewState = reviewStateRepository
-            .findByUserIdAndProblemId(command.userId(), command.problemId())
-            .orElseGet(() -> {
-                // 4-1. 그룹방 타인 문제 첫 풀이 → ReviewState 생성
-                User user = userRepository.findById(command.userId())
-                    .orElseThrow(() -> new ApplicationException(UserException.USER_NOT_FOUND));
-                ProblemReviewState newState = ProblemReviewState.createForGroupProblem(user, problem, today);
-                return reviewStateRepository.save(newState);
-            });
-
-        // 5. 오늘의 복습 문제인지 확인
-        boolean isTodayReview = reviewState.isTodayReviewProblem(today);
-
-        // 6. 복습 상태 업데이트 (오늘의 복습 문제 + 첫 시도만 상태 전이)
-        reviewState.processReviewResult(isCorrect, today, isTodayReview);
-
-        // 7. 결과 반환
-        return ProblemSubmitResult.of(
-            problem,
-            isCorrect,
-            reviewState.getGate(),
-            isTodayReview,
-            reviewState.isFirstAttemptToday(today)
-        );
-    }
-
-    private ReviewGate parseFilterToGate(String filter) {
-        return switch (filter) {
-            case "GATE_1" -> ReviewGate.GATE_1;
-            case "GATE_2" -> ReviewGate.GATE_2;
-            case "ALL" -> null;
-            default -> throw new ApplicationException(CommonException.BAD_REQUEST);
-        };
+        int snapshotCount = problemReviewStateRepository.snapshotTodayReviewProblems(today);
+        log.info("오늘의 복습 문제 스냅샷 생성 완료: {} 건", snapshotCount);
     }
 }
 ```
 
-### 6.4. 데이터베이스 마이그레이션
+**주요 특징**:
+- **실행 시간**: 매일 00:00:00 (KST)
+- **트랜잭션**: `@Transactional`로 원자성 보장
+- **로깅**: 스냅샷 생성 건수 기록
+- **멱등성**: 이미 스냅샷된 문제는 제외 (`todayReviewIncludedDate != today`)
 
-```sql
--- ProblemReviewState 테이블에 필드 추가
-ALTER TABLE problem_review_states
-ADD COLUMN today_review_included_date DATE NULL
-    COMMENT '오늘의 복습 포함 날짜',
-ADD COLUMN today_review_included_gate VARCHAR(20) NULL
-    COMMENT '오늘의 복습 포함 시점 관문',
-ADD COLUMN today_review_first_attempt_date DATE NULL
-    COMMENT '오늘의 복습 첫 시도 처리 날짜';
+**활성화 방법**: `TtopullaeApplication`에 `@EnableScheduling` 추가 필요
 
--- 조회 성능을 위한 인덱스 추가
-CREATE INDEX idx_user_today_included
-ON problem_review_states(user_id, today_review_included_date);
+---
 
--- 복합 인덱스 (필터 조회 최적화)
-CREATE INDEX idx_user_next_review_gate
-ON problem_review_states(user_id, next_review_date, gate);
+### 6.2. 벌크 업데이트 쿼리 (ProblemReviewStateRepository)
+
+**파일**: `src/main/java/com/ebbinghaus/ttopullae/problem/domain/repository/ProblemReviewStateRepository.java`
+
+```java
+@Modifying(clearAutomatically = true)
+@Query("""
+    UPDATE ProblemReviewState prs
+    SET prs.todayReviewIncludedDate = :today,
+        prs.todayReviewIncludedGate = prs.gate
+    WHERE prs.nextReviewDate <= :today
+      AND prs.gate <> 'GRADUATED'
+      AND (prs.todayReviewIncludedDate IS NULL
+           OR prs.todayReviewIncludedDate <> :today)
+    """)
+int snapshotTodayReviewProblems(@Param("today") LocalDate today);
 ```
+
+**쿼리 상세**:
+
+| 조건 | 설명 | 의도 |
+|------|------|------|
+| `nextReviewDate <= today` | 오늘 또는 과거가 복습날 | 오늘 복습할 문제 + 이월 문제 |
+| `gate <> 'GRADUATED'` | 졸업하지 않은 문제 | 졸업 문제 제외 |
+| `todayReviewIncludedDate IS NULL` | 첫 스냅샷 | 새로운 복습 문제 |
+| `todayReviewIncludedDate <> today` | 중복 방지 | 이미 오늘 스냅샷된 문제 제외 |
+
+**업데이트 내용**:
+- `todayReviewIncludedDate = today` → 오늘 목록에 포함
+- `todayReviewIncludedGate = prs.gate` → 현재 gate를 불변 스냅샷으로 저장
+
+**성능**:
+- 벌크 연산으로 모든 사용자의 문제를 한 번에 처리
+- N+1 쿼리 문제 없음
+- `clearAutomatically = true`로 JPA 캐시 자동 정리
+
+---
+
+### 6.3. 오늘의 복습 문제 조회 쿼리 (간소화됨)
+
+**파일**: `src/main/java/com/ebbinghaus/ttopullae/problem/domain/repository/ProblemReviewStateRepository.java`
+
+```java
+@Query("""
+    SELECT DISTINCT prs FROM ProblemReviewState prs
+    LEFT JOIN FETCH prs.problem p
+    WHERE prs.user.userId = :userId
+      AND prs.todayReviewIncludedDate = :today
+      AND (:targetGate IS NULL OR prs.todayReviewIncludedGate = :targetGate)
+    ORDER BY prs.nextReviewDate ASC
+    """)
+List<ProblemReviewState> findTodayReviewProblems(
+    @Param("userId") Long userId,
+    @Param("today") LocalDate today,
+    @Param("targetGate") ReviewGate targetGate
+);
+```
+
+**쿼리 단순화**:
+- **이전**: 8줄의 복잡한 조건 (nextReviewDate, gate 상태 체크 등)
+- **이후**: 3줄의 단순한 조건 (`todayReviewIncludedDate = today`)
+
+**성능 최적화**:
+- `LEFT JOIN FETCH prs.problem`: N+1 쿼리 방지
+- `todayReviewIncludedDate` 인덱스 활용
+- 단순 동등 비교로 쿼리 플랜 최적화
+
+---
+
+### 6.4. 이벤트별 상태 변화 플로우
+
+#### 이벤트 1: 문제 생성 (Problem Creation)
+
+**트리거**: 사용자가 새 문제 생성
+
+**상태 변화**:
+```
+ProblemReviewState 생성:
+- user: 생성자
+- problem: 생성된 문제
+- gate: GATE_1
+- nextReviewDate: 생성일 + 1일
+- todayReviewIncludedDate: null
+- todayReviewIncludedGate: null
+- todayReviewFirstAttemptDate: null
+- reviewCount: 0
+```
+
+**주요 로직**: `ProblemService.createProblem()`
+
+---
+
+#### 이벤트 2: 매일 자정 배치 실행 (Daily Batch)
+
+**트리거**: 매일 00:00:00 스케줄러 실행
+
+**Before**:
+```
+Problem A: nextReviewDate=2025-01-24, todayReviewIncludedDate=null, gate=GATE_1
+Problem B: nextReviewDate=2025-01-23, todayReviewIncludedDate=2025-01-23, gate=GATE_2 (어제 스냅샷, 미풀이)
+Problem C: nextReviewDate=2025-01-25, gate=GATE_1 (미래 문제)
+```
+
+**After** (2025-01-24 기준):
+```
+Problem A: todayReviewIncludedDate=2025-01-24, todayReviewIncludedGate=GATE_1 ← 새로 스냅샷
+Problem B: todayReviewIncludedDate=2025-01-24, todayReviewIncludedGate=GATE_2 ← 재스냅샷 (이월)
+Problem C: 변화 없음 (nextReviewDate > today)
+```
+
+**주요 로직**: `ReviewScheduleService.createDailyReviewSnapshot()`
+
+---
+
+#### 이벤트 3: 오늘의 복습 문제 조회 (Query Today's Review)
+
+**트리거**: 사용자가 오늘의 복습 문제 조회 API 호출
+
+**동작**: 읽기 전용 (`@Transactional(readOnly = true)`)
+
+**반환**:
+```java
+TodayReviewResult {
+    problemId: 123,
+    question: "...",
+    gate: todayReviewIncludedGate,  // 스냅샷 gate (불변)
+    nextReviewDate: 2025-01-24
+}
+```
+
+**중요**:
+- `gate` 필드는 **스냅샷 gate** (`todayReviewIncludedGate`) 반환
+- 현재 gate가 변경되어도 API 응답은 일관됨
+
+**주요 로직**: `ProblemService.getTodayReviewProblems()`
+
+---
+
+#### 이벤트 4: 오늘의 복습 문제 첫 시도 (정답)
+
+**트리거**: 오늘의 복습 문제를 처음 풀이 (정답)
+
+**Before**:
+```
+ProblemReviewState:
+- gate: GATE_1
+- nextReviewDate: 2025-01-24 (오늘)
+- todayReviewIncludedDate: 2025-01-24 (배치에서 스냅샷됨)
+- todayReviewIncludedGate: GATE_1
+- todayReviewFirstAttemptDate: null
+- reviewCount: 0
+```
+
+**After**:
+```
+ProblemReviewState:
+- gate: GATE_2 ← 승급
+- nextReviewDate: 2025-01-31 (today + 7일)
+- todayReviewIncludedDate: 2025-01-24 (유지)
+- todayReviewIncludedGate: GATE_1 (유지, 불변)
+- todayReviewFirstAttemptDate: 2025-01-24 ← 기록
+- reviewCount: 1
+
+ProblemAttempt 생성:
+- user, problem, isCorrect=true, attemptDate=2025-01-24
+```
+
+**주요 로직**: `ProblemService.submitProblemAnswer()`
+
+---
+
+#### 이벤트 5: 오늘의 복습 문제 첫 시도 (오답)
+
+**트리거**: 오늘의 복습 문제를 처음 풀이 (오답)
+
+**Before**:
+```
+ProblemReviewState:
+- gate: GATE_2
+- nextReviewDate: 2025-01-24 (오늘)
+- todayReviewIncludedDate: 2025-01-24
+- todayReviewIncludedGate: GATE_2
+- todayReviewFirstAttemptDate: null
+```
+
+**After**:
+```
+ProblemReviewState:
+- gate: GATE_1 ← 강등
+- nextReviewDate: 2025-01-25 (today + 1일)
+- todayReviewIncludedDate: 2025-01-24 (유지)
+- todayReviewIncludedGate: GATE_2 (유지, 불변)
+- todayReviewFirstAttemptDate: 2025-01-24 ← 기록
+
+ProblemAttempt 생성:
+- user, problem, isCorrect=false, attemptDate=2025-01-24
+```
+
+---
+
+#### 이벤트 6: 오늘의 복습 문제 재시도
+
+**트리거**: 오늘 이미 풀었던 문제를 다시 풀이 (정답/오답 무관)
+
+**Before**:
+```
+ProblemReviewState:
+- gate: GATE_2
+- todayReviewFirstAttemptDate: 2025-01-24 (오늘)
+```
+
+**After**:
+```
+ProblemReviewState: 변화 없음 (모든 필드 동일)
+
+ProblemAttempt 생성:
+- user, problem, isCorrect=true/false, attemptDate=2025-01-24
+```
+
+**핵심**:
+- `todayReviewFirstAttemptDate`가 오늘이면 재시도로 판단
+- 채점 결과만 제공, **상태 불변**
+
+---
+
+#### 이벤트 7: 비복습 문제 풀이 (미래/졸업 문제)
+
+**트리거**: 오늘의 복습 셋이 아닌 문제 풀이
+
+**Before**:
+```
+ProblemReviewState:
+- gate: GATE_1
+- nextReviewDate: 2025-01-26 (미래)
+- todayReviewIncludedDate: null
+```
+
+**After**:
+```
+ProblemReviewState: 변화 없음
+
+ProblemAttempt 생성:
+- user, problem, isCorrect=true/false, attemptDate=2025-01-24
+```
+
+**핵심**: 채점만 제공, 상태 불변
+
+---
+
+### 6.5. 문제 풀이 API 구현 가이드라인
+
+> **대상 독자**: 문제 풀이 API (`POST /api/problems/{problemId}/submit`)를 구현할 개발자
+
+#### 6.5.1. 핵심 판단 로직
+
+**단계 1: 오늘의 복습 문제 여부 판단**
+
+```java
+boolean isTodayReview = (reviewState.getTodayReviewIncludedDate() != null
+                         && reviewState.getTodayReviewIncludedDate().equals(LocalDate.now()));
+```
+
+**단계 2: 첫 시도 여부 판단** (오늘의 복습 문제인 경우만)
+
+```java
+boolean isFirstAttemptToday = isTodayReview
+    && (reviewState.getTodayReviewFirstAttemptDate() == null
+        || !reviewState.getTodayReviewFirstAttemptDate().equals(LocalDate.now()));
+```
+
+**단계 3: 상태 전이 여부 결정**
+
+```
+if (!isTodayReview) {
+    → 채점만 제공, 상태 불변
+    → 시도 로그만 저장
+} else if (!isFirstAttemptToday) {
+    → 재시도 (채점만 제공)
+    → 상태 불변, 시도 로그만 저장
+} else {
+    → 첫 시도 (상태 전이 발생)
+    → 채점 + 상태 업데이트 + 시도 로그 저장
+}
+```
+
+#### 6.5.2. 상태 업데이트 체크리스트
+
+**첫 시도 시 필수 업데이트 필드**:
+
+- [ ] `todayReviewFirstAttemptDate = LocalDate.now()`
+- [ ] `reviewCount += 1`
+- [ ] `gate` 전이 (정답/오답에 따라)
+- [ ] `nextReviewDate` 갱신 (gate 전이 규칙 따름)
+
+**주의사항**:
+- ❌ `todayReviewIncludedDate` 업데이트 금지 (배치만 수정)
+- ❌ `todayReviewIncludedGate` 업데이트 금지 (배치만 수정, 불변)
+
+#### 6.5.3. 의사 결정 플로우차트
+
+```
+[문제 풀이 요청]
+     ↓
+[ReviewState 조회]
+     ↓
+     ├─ 없음? → [ReviewState 생성] → [채점만 제공, 상태 불변]
+     ↓
+     └─ 있음
+          ↓
+    [todayReviewIncludedDate == today?]
+          ↓
+          ├─ NO (비복습 문제) → [채점만 제공, 상태 불변]
+          ↓
+          └─ YES (오늘의 복습 문제)
+               ↓
+         [todayReviewFirstAttemptDate == null OR != today?]
+               ↓
+               ├─ NO (재시도) → [채점만 제공, 상태 불변]
+               ↓
+               └─ YES (첫 시도)
+                    ↓
+              [채점 + 상태 전이 + todayReviewFirstAttemptDate 기록]
+```
+
+#### 6.5.4. 엣지 케이스 처리
+
+**케이스 1: 졸업 문제를 다시 풀기**
+- `gate = GRADUATED` → 비복습 문제로 처리
+- 채점만 제공, 상태 불변
+
+**케이스 2: 자정 직후 문제 풀이**
+- 배치가 아직 실행 안 됨 → `todayReviewIncludedDate = 어제`
+- 비복습 문제로 처리 (정상 동작)
+- 배치 실행 후 스냅샷 생성됨
+
+**케이스 3: 그룹방 타인 문제 첫 풀이**
+- `ProblemReviewState` 없음 → 생성
+- `nextReviewDate = today + 1일`로 설정
+- 채점만 제공, 상태 불변
+- 다음 날 배치에서 스냅샷됨
+
+**케이스 4: 첫 시도 후 gate가 GRADUATED**
+- `todayReviewFirstAttemptDate != null` → 재시도로 판단
+- 채점만 제공, 상태 불변 (GRADUATED 유지)
+
+#### 6.5.5. 안티패턴 (하지 말 것)
+
+❌ **잘못된 예시 1**: 조회 시 스냅샷 필드 초기화
+```java
+// ❌ 절대 금지: 조회 로직에서 todayReviewIncludedDate 수정
+if (reviewState.getTodayReviewIncludedDate() == null) {
+    reviewState.setTodayReviewIncludedDate(LocalDate.now());
+}
+```
+→ 배치만 스냅샷 필드를 수정해야 함
+
+❌ **잘못된 예시 2**: 재시도 시 상태 업데이트
+```java
+// ❌ 재시도 시 gate 변경
+if (isCorrect && reviewState.getGate() == ReviewGate.GATE_1) {
+    reviewState.setGate(ReviewGate.GATE_2);  // 첫 시도 확인 없이 변경
+}
+```
+→ 첫 시도만 상태 전이
+
+❌ **잘못된 예시 3**: `todayReviewIncludedGate` 갱신
+```java
+// ❌ 문제 풀이 시 todayReviewIncludedGate 수정
+reviewState.setTodayReviewIncludedGate(reviewState.getGate());
+```
+→ 이 필드는 배치에서만 설정, 하루 동안 불변
+
+#### 6.5.6. 구현 참고 코드 위치
+
+- **문제 풀이 서비스**: `ProblemService.submitProblemAnswer()`
+- **상태 전이 로직**: `ProblemReviewState.processReviewResult()`
+- **첫 시도 판단**: `ProblemReviewState.isFirstAttemptToday()`
+- **오늘의 복습 판단**: `ProblemReviewState.isTodayReview()`
+
+---
+
+### 6.6. 필드 업데이트 시점 요약
+
+| 필드 | 업데이트 주체 | 시점 | 빈도 |
+|------|--------------|------|------|
+| `gate` | 문제 풀이 로직 | 오늘의 복습 첫 시도 시 | 수시 |
+| `nextReviewDate` | 문제 풀이 로직 | 오늘의 복습 첫 시도 시 | 수시 |
+| `reviewCount` | 문제 풀이 로직 | 오늘의 복습 첫 시도 시 | 수시 |
+| `todayReviewIncludedDate` | 배치 스케줄러 | 매일 00:00:00 | 1회/일 |
+| `todayReviewIncludedGate` | 배치 스케줄러 | 매일 00:00:00 | 1회/일 |
+| `todayReviewFirstAttemptDate` | 문제 풀이 로직 | 오늘의 복습 첫 시도 시 | 수시 |
 
 ---
 
@@ -526,39 +667,39 @@ ON problem_review_states(user_id, next_review_date, gate);
 
 ### 7.1. 시나리오 1: 오늘의 복습 문제 첫 시도 (정답)
 
-**초기 상태**:
+**초기 상태** (자정 배치 실행 완료 후):
 ```
 ProblemReviewState:
 - gate: GATE_1
 - nextReviewDate: 2025-01-23 (오늘)
-- todayReviewIncludedDate: null
-- todayReviewIncludedGate: null
+- todayReviewIncludedDate: 2025-01-23  ← 배치에서 스냅샷됨
+- todayReviewIncludedGate: GATE_1      ← 배치에서 스냅샷됨
 - todayReviewFirstAttemptDate: null
 ```
 
-**사용자 동작**: Problem A를 정답으로 풀이
+**사용자 동작** (10:00): Problem A를 정답으로 풀이
 
 **처리 과정**:
-1. ✅ 오늘의 복습 문제 확인: `nextReviewDate <= today` → true
+1. ✅ 오늘의 복습 문제 확인: `todayReviewIncludedDate == today` → true
 2. ✅ 첫 시도 확인: `todayReviewFirstAttemptDate == null` → true
 3. 📝 시도 로그 저장: `ProblemAttempt(isCorrect=true)`
 4. 🔄 상태 전이:
    ```
-   todayReviewIncludedDate = 2025-01-23
-   todayReviewIncludedGate = GATE_1 (원래 gate)
-   todayReviewFirstAttemptDate = 2025-01-23
-   gate: GATE_1 → GATE_2
+   todayReviewFirstAttemptDate = 2025-01-23  ← 첫 시도 기록
+   gate: GATE_1 → GATE_2                     ← 승급
    nextReviewDate: 2025-01-23 → 2025-01-30 (+7일)
    reviewCount: 0 → 1
+
+   (todayReviewIncludedDate, todayReviewIncludedGate는 유지)
    ```
 
 **조회 결과** (11:00에 다시 조회):
 - ✅ Problem A 여전히 표시됨
-- 이유: `todayReviewIncludedDate = 2025-01-23`
+- 이유: `todayReviewIncludedDate = 2025-01-23` (배치에서 설정, 불변)
 
 **GATE_1 필터 조회**:
 - ✅ Problem A 여전히 표시됨
-- 이유: `todayReviewIncludedGate = GATE_1`
+- 이유: `todayReviewIncludedGate = GATE_1` (배치에서 설정, 불변)
 
 ### 7.2. 시나리오 2: 오늘의 복습 문제 재시도
 
@@ -737,6 +878,7 @@ ProblemReviewState:
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2025-01-23 | 개발팀 | 초안 작성, MVP 방안 결정 |
+| 2.0 | 2025-01-24 | 개발팀 | 스케줄러 기반 스냅샷 구현으로 변경, 기술 구현 상세 추가, 이벤트별 상태 변화 플로우 문서화, 문제 풀이 API 구현 가이드라인 추가 |
 
 ### C. 용어 정의
 
