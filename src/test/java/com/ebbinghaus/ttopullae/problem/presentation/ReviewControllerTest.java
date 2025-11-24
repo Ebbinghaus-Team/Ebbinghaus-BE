@@ -133,6 +133,9 @@ class ReviewControllerTest {
                 .build();
         problemReviewStateRepository.save(reviewState2);
 
+        // 스냅샷 생성 (배치 시뮬레이션)
+        problemReviewStateRepository.snapshotTodayReviewProblems(today);
+
         // when & then
         mockMvc.perform(get("/api/review/today")
                         .cookie(new Cookie("accessToken", accessToken))
@@ -201,6 +204,9 @@ class ReviewControllerTest {
                 .build();
         problemReviewStateRepository.save(reviewState2);
 
+        // 스냅샷 생성 (배치 시뮬레이션)
+        problemReviewStateRepository.snapshotTodayReviewProblems(today);
+
         // when & then
         mockMvc.perform(get("/api/review/today")
                         .cookie(new Cookie("accessToken", accessToken))
@@ -258,6 +264,9 @@ class ReviewControllerTest {
                 .build();
         problemReviewStateRepository.save(reviewState2);
 
+        // 스냅샷 생성 (배치 시뮬레이션)
+        problemReviewStateRepository.snapshotTodayReviewProblems(today);
+
         // when & then
         mockMvc.perform(get("/api/review/today")
                         .cookie(new Cookie("accessToken", accessToken))
@@ -313,6 +322,9 @@ class ReviewControllerTest {
                 .reviewCount(0)
                 .build();
         problemReviewStateRepository.save(reviewState1);
+
+        // 스냅샷 생성 (배치 시뮬레이션)
+        problemReviewStateRepository.snapshotTodayReviewProblems(today);
 
         // when & then - filter 파라미터를 생략하면 defaultValue="ALL" 적용됨
         mockMvc.perform(get("/api/review/today")
@@ -385,7 +397,7 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.dashboard.completedCount").value(1))
                 .andExpect(jsonPath("$.problems.length()").value(1))
                 .andExpect(jsonPath("$.problems[0].problemId").value(graduatedProblem.getProblemId()))
-                .andExpect(jsonPath("$.problems[0].gate").value("GRADUATED"));
+                .andExpect(jsonPath("$.problems[0].gate").value("GATE_2"));  // 스냅샷 시점의 gate 반환
 
         // 데이터베이스 검증
         assertThat(problemReviewStateRepository.count()).isEqualTo(1);

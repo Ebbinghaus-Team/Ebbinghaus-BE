@@ -473,6 +473,8 @@ class ProblemServiceTest {
                 .gate(ReviewGate.GATE_1)
                 .nextReviewDate(today)
                 .reviewCount(0)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_1)
                 .build();
 
         ProblemReviewState reviewState2 = ProblemReviewState.builder()
@@ -482,6 +484,8 @@ class ProblemServiceTest {
                 .nextReviewDate(today)
                 .reviewCount(1)
                 .todayReviewFirstAttemptDate(today)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_2)
                 .build();
 
         List<ProblemReviewState> reviewStates = List.of(reviewState1, reviewState2);
@@ -549,6 +553,8 @@ class ProblemServiceTest {
                 .gate(ReviewGate.GATE_1)
                 .nextReviewDate(today)
                 .reviewCount(0)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_1)
                 .build();
 
         List<ProblemReviewState> reviewStates = List.of(reviewState1);
@@ -610,6 +616,8 @@ class ProblemServiceTest {
                 .gate(ReviewGate.GATE_2)
                 .nextReviewDate(today)
                 .reviewCount(1)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_2)
                 .build();
 
         List<ProblemReviewState> reviewStates = List.of(reviewState2);
