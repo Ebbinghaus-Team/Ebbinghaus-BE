@@ -1,8 +1,10 @@
 # API 명세서
 
-> 작성일: 2025-01-24
-> 버전: v2.1
-> **변경사항**: 문제 풀이 제출 API 추가
+> 작성일: 2025-01-25
+> 버전: v2.2
+> **변경사항**:
+> - 로그인 API 응답 수정 (accessToken 응답 바디에서 제거, 쿠키로만 전달)
+> - 이메일 알림 설정 API 추가
 
 ## 목차
 
@@ -17,6 +19,7 @@
 6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
 7. [오늘의 복습 문제 조회 API](#7-오늘의-복습-문제-조회-api)
 8. [문제 풀이 제출 API](#8-문제-풀이-제출-api)
+9. [이메일 알림 설정 API](#9-이메일-알림-설정-api)
 
 ---
 
@@ -148,12 +151,13 @@ Content-Type: application/json
 | userId | Long | 사용자 ID | 1 |
 | email | String | 사용자 이메일 | "user@example.com" |
 | username | String | 사용자 이름 | "홍길동" |
-| accessToken | String | JWT 액세스 토큰 | "eyJhbGciOiJIUzI1..." |
 
 **Set-Cookie Header**:
 ```
 Set-Cookie: accessToken={JWT_TOKEN}; Path=/; HttpOnly; SameSite=None; Max-Age=86400
 ```
+
+> **참고**: 액세스 토큰은 응답 바디에 포함되지 않고, HttpOnly 쿠키로만 전달됩니다. 브라우저가 자동으로 이후 요청에 쿠키를 포함시킵니다.
 
 ##### Response Example
 
@@ -161,8 +165,7 @@ Set-Cookie: accessToken={JWT_TOKEN}; Path=/; HttpOnly; SameSite=None; Max-Age=86
 {
   "userId": 1,
   "email": "user@example.com",
-  "username": "홍길동",
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "username": "홍길동"
 }
 ```
 
@@ -1730,3 +1733,199 @@ Cookie: accessToken={JWT_TOKEN}
 4. **풀이 이력 기록**
    - 모든 시도는 `problem_attempts` 테이블에 기록
    - 정답/오답, 제출 답안, AI 피드백 저장
+
+---
+
+## 9. 이메일 알림 설정 API
+
+### 9.1. 기본 정보
+
+- **Endpoint**: `PATCH /api/problems/{problemId}/email-notification`
+- **설명**: 그룹방 타인 문제에 대한 복습 이메일 알림 수신 여부를 설정합니다.
+- **인증**: 필수 (JWT 쿠키)
+
+### 9.2. Request
+
+#### Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| problemId | Long | O | 문제 ID |
+
+#### Headers
+
+```
+Content-Type: application/json
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### Body
+
+| 필드 | 타입 | 필수 | 설명 | 예시 |
+|------|------|------|------|------|
+| receiveEmailNotification | Boolean | O | 이메일 알림 수신 여부 | true |
+
+#### Request Example
+
+```json
+{
+  "receiveEmailNotification": true
+}
+```
+
+### 9.3. Response
+
+#### Success (200 OK)
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| receiveEmailNotification | Boolean | 설정된 이메일 알림 수신 여부 | true |
+| message | String | 성공 메시지 | "이메일 알림 설정이 완료되었습니다." |
+
+#### Response Examples
+
+**9.3.1. 알림 수신 설정**
+
+```json
+{
+  "receiveEmailNotification": true,
+  "message": "이메일 알림 설정이 완료되었습니다."
+}
+```
+
+**9.3.2. 알림 거부 설정**
+
+```json
+{
+  "receiveEmailNotification": false,
+  "message": "이메일 알림 설정이 완료되었습니다."
+}
+```
+
+### 9.4. Error Responses
+
+#### 400 Bad Request - 문제를 풀지 않음
+
+**문제를 아직 풀지 않은 경우**
+```json
+{
+  "title": "문제를 풀지 않음",
+  "status": 400,
+  "detail": "아직 풀지 않은 문제입니다. 문제를 먼저 풀어주세요.",
+  "instance": "/api/problems/6/email-notification"
+}
+```
+
+#### 400 Bad Request - 본인 문제 설정 시도
+
+**본인이 만든 문제의 알림 설정을 변경하려는 경우**
+```json
+{
+  "title": "알림 설정 변경 불가",
+  "status": 400,
+  "detail": "본인이 만든 문제는 이메일 알림 설정을 변경할 수 없습니다.",
+  "instance": "/api/problems/1/email-notification"
+}
+```
+
+#### 400 Bad Request - 이미 설정 완료
+
+**이미 알림 설정을 변경한 경우**
+```json
+{
+  "title": "알림 설정 이미 완료",
+  "status": 400,
+  "detail": "이메일 알림 설정은 한 번만 변경할 수 있습니다.",
+  "instance": "/api/problems/6/email-notification"
+}
+```
+
+#### 401 Unauthorized - 인증 실패
+
+**JWT 토큰이 없거나 유효하지 않은 경우**
+```json
+{
+  "title": "토큰을 찾을 수 없음",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/problems/6/email-notification"
+}
+```
+
+#### 404 Not Found - 문제를 찾을 수 없음
+
+**존재하지 않는 문제 ID로 요청한 경우**
+```json
+{
+  "title": "문제를 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 ID의 문제가 존재하지 않습니다.",
+  "instance": "/api/problems/999/email-notification"
+}
+```
+
+### 9.5. 비즈니스 규칙
+
+#### 9.5.1. 설정 가능 조건
+
+이메일 알림 설정을 변경하려면 다음 조건을 모두 만족해야 합니다:
+
+1. **문제를 최소 한 번 이상 풀었어야 함**
+   - `ProblemReviewState`가 존재해야 함
+   - 문제를 풀지 않은 상태에서는 설정 불가
+
+2. **타인이 만든 문제여야 함**
+   - 본인이 만든 문제는 항상 이메일 알림 필수 (true 고정)
+   - 본인 문제의 알림 설정은 변경 불가
+
+3. **아직 설정을 변경하지 않았어야 함**
+   - 이메일 알림 설정은 문제당 **한 번만** 변경 가능
+   - 이미 설정을 변경한 경우 재변경 불가
+
+#### 9.5.2. 기본 동작
+
+- **본인이 만든 문제**
+  - 이메일 알림: `true` (필수, 변경 불가)
+  - `emailNotificationConfigured`: `true` (처음부터 설정 완료 상태)
+
+- **타인이 만든 문제 (그룹방)**
+  - 기본값: `false` (알림 받지 않음)
+  - 첫 풀이 후 한 번만 설정 가능
+  - 설정 후 `emailNotificationConfigured`: `true`
+
+#### 9.5.3. 사용 시나리오
+
+**시나리오 1: 그룹방 타인 문제를 처음 풀고 알림 받기**
+1. 그룹방의 다른 멤버가 만든 문제를 풀이 (`POST /api/problems/{problemId}/submit`)
+2. `ProblemReviewState` 자동 생성 (`receiveEmailNotification: false`, `emailNotificationConfigured: false`)
+3. 알림 수신 설정 (`PATCH /api/problems/{problemId}/email-notification`)
+4. `receiveEmailNotification: true`, `emailNotificationConfigured: true`로 변경
+5. 다음 날부터 해당 문제가 복습 알림 메일에 포함됨
+
+**시나리오 2: 그룹방 타인 문제를 풀었지만 알림 거부**
+1. 그룹방의 다른 멤버가 만든 문제를 풀이
+2. `ProblemReviewState` 자동 생성 (`receiveEmailNotification: false`)
+3. 알림 설정을 하지 않거나 `false`로 설정
+4. 해당 문제는 복습 알림 메일에 포함되지 않음
+
+**시나리오 3: 본인 문제 알림 설정 시도 (실패)**
+1. 본인이 만든 문제에 대해 알림 설정 API 호출
+2. `400 Bad Request` 응답 (본인 문제는 설정 변경 불가)
+
+### 9.6. 주요 특징
+
+1. **선택적 알림 수신**
+   - 그룹방에서 타인이 만든 문제만 알림 수신 여부 선택 가능
+   - 본인이 만든 문제는 항상 알림 필수
+
+2. **1회 설정 제한**
+   - 문제당 한 번만 설정 가능하여 의사 결정 명확성 보장
+   - 무분별한 설정 변경 방지
+
+3. **문제 풀이 후 설정**
+   - 문제를 먼저 풀어본 후에 알림 여부 결정
+   - 문제의 난이도와 중요도를 파악한 후 선택 가능
+
+4. **기본값 false**
+   - 타인 문제는 기본적으로 알림을 보내지 않음
+   - 사용자가 명시적으로 선택한 문제만 알림 수신
