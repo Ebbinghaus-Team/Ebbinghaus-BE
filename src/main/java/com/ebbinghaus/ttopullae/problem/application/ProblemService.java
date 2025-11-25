@@ -213,6 +213,7 @@ public class ProblemService {
                     .nextReviewDate(LocalDate.now().plusDays(1))
                     .reviewCount(0)
                     .receiveEmailNotification(true)  // 본인이 만든 문제는 무조건 이메일 알림 수신
+                    .emailNotificationConfigured(true)  // 본인 문제는 설정 변경 불가
                     .build();
 
             problemReviewStateRepository.save(reviewState);
@@ -240,7 +241,7 @@ public class ProblemService {
 
         if (optionalReviewState.isEmpty()) {
             // 그룹방 타인 문제 첫 풀이: ReviewState 생성
-            reviewState = createReviewStateForGroupProblem(user, problem, today, command.receiveEmailNotification());
+            reviewState = createReviewStateForGroupProblem(user, problem, today);
             isNewReviewState = true;
         } else {
             reviewState = optionalReviewState.get();
@@ -289,10 +290,11 @@ public class ProblemService {
     /**
      * 그룹방 타인 문제 첫 풀이 시 ReviewState 생성
      */
-    private ProblemReviewState createReviewStateForGroupProblem(User user, Problem problem, LocalDate today, Boolean receiveEmailNotification) {
-        // 본인이 만든 문제는 무조건 이메일 알림 수신
+    private ProblemReviewState createReviewStateForGroupProblem(User user, Problem problem, LocalDate today) {
+        // 본인이 만든 문제는 무조건 이메일 알림 수신, 타인 문제는 기본 false (별도 API로 설정)
         boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
-        boolean shouldReceiveEmail = isOwnProblem || (receiveEmailNotification != null && receiveEmailNotification);
+        boolean shouldReceiveEmail = isOwnProblem;
+        boolean configured = isOwnProblem; // 본인 문제는 처음부터 설정 완료 상태
 
         ProblemReviewState reviewState = ProblemReviewState.builder()
                 .user(user)
@@ -304,6 +306,7 @@ public class ProblemService {
                 .todayReviewIncludedGate(null)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(shouldReceiveEmail)
+                .emailNotificationConfigured(configured)
                 .build();
 
         return problemReviewStateRepository.save(reviewState);
@@ -532,5 +535,33 @@ public class ProblemService {
                 throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
             }
         }
+    }
+
+    /**
+     * 이메일 알림 설정 변경
+     */
+    @Transactional
+    public void configureEmailNotification(com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand command) {
+        User user = findUserById(command.userId());
+        Problem problem = findProblemById(command.problemId());
+
+        // ReviewState 존재 확인
+        ProblemReviewState reviewState = problemReviewStateRepository
+                .findByUserAndProblem(user, problem)
+                .orElseThrow(() -> new ApplicationException(ProblemException.PROBLEM_NOT_ATTEMPTED));
+
+        // 본인이 만든 문제인지 확인
+        boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
+        if (isOwnProblem) {
+            throw new ApplicationException(ProblemException.EMAIL_NOTIFICATION_NOT_CONFIGURABLE);
+        }
+
+        // 이미 설정했는지 확인
+        if (!reviewState.canConfigureEmailNotification()) {
+            throw new ApplicationException(ProblemException.EMAIL_NOTIFICATION_ALREADY_CONFIGURED);
+        }
+
+        // 설정 변경
+        reviewState.configureEmailNotification(command.receiveEmailNotification());
     }
 }

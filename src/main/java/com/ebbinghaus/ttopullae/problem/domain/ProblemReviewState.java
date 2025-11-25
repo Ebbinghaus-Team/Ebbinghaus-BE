@@ -71,11 +71,21 @@ public class ProblemReviewState extends BaseTimeEntity {
      * - true: 복습 알림 메일 받기
      * - false: 복습 알림 메일 받지 않기
      * - 본인이 생성한 문제는 항상 true (필수)
-     * - 그룹방 타인 문제는 첫 풀이 시 설정 가능
+     * - 그룹방 타인 문제는 첫 풀이 후 설정 가능
      */
     @Builder.Default
     @Column(nullable = false)
     private Boolean receiveEmailNotification = Boolean.TRUE;
+
+    /**
+     * 이메일 알림 설정 변경 여부
+     * - true: 이미 설정을 변경함 (재변경 불가)
+     * - false: 아직 설정 안 함 (변경 가능)
+     * - 본인이 만든 문제는 처음부터 true (변경 불가)
+     */
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean emailNotificationConfigured = Boolean.FALSE;
 
     public void updateGate(ReviewGate gate, LocalDate nextDate) {
         this.gate = gate;
@@ -105,5 +115,22 @@ public class ProblemReviewState extends BaseTimeEntity {
     public boolean isTodayReviewProblem(LocalDate today) {
         return (nextReviewDate != null && !nextReviewDate.isAfter(today))
                 || (todayReviewIncludedDate != null && todayReviewIncludedDate.equals(today));
+    }
+
+    /**
+     * 이메일 알림 수신 설정 변경
+     * @param receive 이메일 알림 수신 여부
+     */
+    public void configureEmailNotification(boolean receive) {
+        this.receiveEmailNotification = receive;
+        this.emailNotificationConfigured = true;
+    }
+
+    /**
+     * 이메일 알림 설정이 가능한 상태인지 확인
+     * @return 설정 가능 여부 (아직 설정 안 한 경우 true)
+     */
+    public boolean canConfigureEmailNotification() {
+        return !this.emailNotificationConfigured;
     }
 }

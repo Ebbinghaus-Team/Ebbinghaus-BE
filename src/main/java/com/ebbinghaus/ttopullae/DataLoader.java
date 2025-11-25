@@ -155,6 +155,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(ReviewGate.GATE_1)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state1);
 
@@ -180,6 +181,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(ReviewGate.GATE_2)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state2);
 
@@ -202,6 +204,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(ReviewGate.GATE_2)
                 .todayReviewFirstAttemptDate(today)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state3);
 
@@ -233,6 +236,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(null)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state4);
 
@@ -258,6 +262,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(null)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state5);
 
@@ -283,6 +288,7 @@ public class DataLoader implements CommandLineRunner {
                 .todayReviewIncludedGate(null)
                 .todayReviewFirstAttemptDate(null)
                 .receiveEmailNotification(true)
+                .emailNotificationConfigured(true)
                 .build();
         problemReviewStateRepository.save(state6);
 

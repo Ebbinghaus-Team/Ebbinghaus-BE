@@ -1,8 +1,8 @@
 package com.ebbinghaus.ttopullae.problem.application.dto;
 
-public record ProblemSubmitCommand(
+public record ProblemEmailNotificationCommand(
         Long userId,
         Long problemId,
-        String answer
+        Boolean receiveEmailNotification
 ) {
 }

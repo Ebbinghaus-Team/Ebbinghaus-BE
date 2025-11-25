@@ -3,10 +3,12 @@ package com.ebbinghaus.ttopullae.problem.presentation;
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.problem.application.ProblemService;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
+import com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitResponse;
 import jakarta.validation.Valid;
@@ -44,12 +46,27 @@ public class ProblemController implements ProblemControllerDocs {
         ProblemSubmitCommand command = new ProblemSubmitCommand(
                 userId,
                 problemId,
-                request.answer(),
-                request.receiveEmailNotification()
+                request.answer()
         );
 
         ProblemSubmitResult result = problemService.submitProblemAnswer(command);
         ProblemSubmitResponse response = ProblemSubmitResponse.from(result);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{problemId}/email-notification")
+    public ResponseEntity<Void> configureEmailNotification(
+            @LoginUser Long userId,
+            @PathVariable Long problemId,
+            @Valid @RequestBody ProblemEmailNotificationRequest request
+    ) {
+        ProblemEmailNotificationCommand command = new ProblemEmailNotificationCommand(
+                userId,
+                problemId,
+                request.receiveEmailNotification()
+        );
+
+        problemService.configureEmailNotification(command);
+        return ResponseEntity.ok().build();
     }
 }
