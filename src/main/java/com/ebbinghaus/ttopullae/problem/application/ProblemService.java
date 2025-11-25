@@ -232,20 +232,9 @@ public class ProblemService {
         // 그룹 스터디룸 접근 권한 검증
         validateStudyRoomAccess(user, problem);
 
-        // ReviewState 조회 또는 생성 (그룹방 타인 문제)
+        // ReviewState 조회
         Optional<ProblemReviewState> optionalReviewState =
                 problemReviewStateRepository.findByUserAndProblem(user, problem);
-
-        ProblemReviewState reviewState;
-        boolean isNewReviewState = false;
-
-        if (optionalReviewState.isEmpty()) {
-            // 그룹방 타인 문제 첫 풀이: ReviewState 생성
-            reviewState = createReviewStateForGroupProblem(user, problem, today);
-            isNewReviewState = true;
-        } else {
-            reviewState = optionalReviewState.get();
-        }
 
         // 채점 수행
         boolean isCorrect = gradeAnswer(problem, command.answer());
@@ -255,6 +244,21 @@ public class ProblemService {
             aiFeedback = gradeEssayWithAi(problem, command.answer());
         }
 
+        // 시도 로그 저장 (ReviewState 존재 여부와 무관하게 항상 저장)
+        saveProblemAttempt(user, problem, command.answer(), isCorrect, aiFeedback);
+
+        // ReviewState가 없으면 채점 결과만 반환 (그룹방 타인 문제 첫 풀이)
+        if (optionalReviewState.isEmpty()) {
+            return buildSubmitResultWithoutReviewState(
+                    isCorrect,
+                    problem.getExplanation(),
+                    aiFeedback
+            );
+        }
+
+        // ReviewState가 있는 경우 기존 복습 로직 수행
+        ProblemReviewState reviewState = optionalReviewState.get();
+
         // 오늘의 복습 문제 여부 판단
         boolean isTodayReview = reviewState.isTodayReviewProblem(today);
 
@@ -263,13 +267,10 @@ public class ProblemService {
 
         // 상태 전이 처리 (오늘의 복습 문제 + 첫 시도만)
         boolean isReviewStateChanged = false;
-        if (isTodayReview && isFirstAttemptToday && !isNewReviewState) {
+        if (isTodayReview && isFirstAttemptToday) {
             updateReviewStateOnFirstAttempt(reviewState, isCorrect, today);
             isReviewStateChanged = true;
         }
-
-        // 시도 로그 저장
-        saveProblemAttempt(user, problem, command.answer(), isCorrect, aiFeedback);
 
         // 결과 반환
         return buildSubmitResult(
@@ -288,28 +289,23 @@ public class ProblemService {
     }
 
     /**
-     * 그룹방 타인 문제 첫 풀이 시 ReviewState 생성
+     * ReviewState 없이 채점 결과만 반환 (그룹방 타인 문제 첫 풀이)
      */
-    private ProblemReviewState createReviewStateForGroupProblem(User user, Problem problem, LocalDate today) {
-        // 본인이 만든 문제는 무조건 이메일 알림 수신, 타인 문제는 기본 false (별도 API로 설정)
-        boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
-        boolean shouldReceiveEmail = isOwnProblem;
-        boolean configured = isOwnProblem; // 본인 문제는 처음부터 설정 완료 상태
-
-        ProblemReviewState reviewState = ProblemReviewState.builder()
-                .user(user)
-                .problem(problem)
-                .gate(ReviewGate.GATE_1)
-                .nextReviewDate(today.plusDays(1))
-                .reviewCount(0)
-                .todayReviewIncludedDate(null)
-                .todayReviewIncludedGate(null)
-                .todayReviewFirstAttemptDate(null)
-                .receiveEmailNotification(shouldReceiveEmail)
-                .emailNotificationConfigured(configured)
-                .build();
-
-        return problemReviewStateRepository.save(reviewState);
+    private ProblemSubmitResult buildSubmitResultWithoutReviewState(
+            boolean isCorrect,
+            String explanation,
+            String aiFeedback
+    ) {
+        return new ProblemSubmitResult(
+                isCorrect,
+                explanation,
+                aiFeedback,
+                null,     // currentGate: null = 복습 주기에 없음
+                null,     // reviewCount: null = 복습 안 함
+                null,     // nextReviewDate: null = 복습 예정 없음
+                false,    // isFirstAttempt: false = 오늘의 복습 아님
+                false     // isReviewStateChanged: false = 상태 변화 없음
+        );
     }
 
     /**
@@ -538,23 +534,35 @@ public class ProblemService {
     }
 
     /**
-     * 이메일 알림 설정 변경
+     * 이메일 알림 설정 변경 (복습에 추가 역할 겸함)
      */
     @Transactional
     public Boolean configureEmailNotification(Long userId, com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand command) {
         User user = findUserById(userId);
         Problem problem = findProblemById(command.problemId());
 
-        // ReviewState 존재 확인
-        ProblemReviewState reviewState = problemReviewStateRepository
-                .findByUserAndProblem(user, problem)
-                .orElseThrow(() -> new ApplicationException(ProblemException.PROBLEM_NOT_ATTEMPTED));
-
-        // 본인이 만든 문제인지 확인
+        // 본인이 만든 문제인지 확인 (본인 문제는 설정 변경 불가)
         boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
         if (isOwnProblem) {
             throw new ApplicationException(ProblemException.EMAIL_NOTIFICATION_NOT_CONFIGURABLE);
         }
+
+        // ReviewState 조회 또는 생성 (그룹방 타인 문제를 복습에 추가하는 시점)
+        ProblemReviewState reviewState = problemReviewStateRepository
+                .findByUserAndProblem(user, problem)
+                .orElseGet(() -> {
+                    // ReviewState가 없으면 생성 (복습 주기에 추가)
+                    ProblemReviewState newState = ProblemReviewState.builder()
+                            .user(user)
+                            .problem(problem)
+                            .gate(ReviewGate.GATE_1)
+                            .nextReviewDate(LocalDate.now().plusDays(1))
+                            .reviewCount(0)
+                            .receiveEmailNotification(command.receiveEmailNotification())
+                            .emailNotificationConfigured(true)
+                            .build();
+                    return problemReviewStateRepository.save(newState);
+                });
 
         // 이미 설정했는지 확인
         if (!reviewState.canConfigureEmailNotification()) {
