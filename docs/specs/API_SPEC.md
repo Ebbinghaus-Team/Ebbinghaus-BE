@@ -1,10 +1,11 @@
 # API 명세서
 
-> 작성일: 2025-01-25
-> 버전: v2.2
+> 작성일: 2025-01-26
+> 버전: v2.3
 > **변경사항**:
-> - 로그인 API 응답 수정 (accessToken 응답 바디에서 제거, 쿠키로만 전달)
-> - 이메일 알림 설정 API 추가
+> - 이메일 알림 설정 API → 복습 루프 포함 설정 API로 변경
+> - 용어 변경: "이메일 알림" → "복습 루프 포함"
+> - 엔드포인트 변경: `/email-notification` → `/review-inclusion`
 
 ## 목차
 
@@ -19,7 +20,7 @@
 6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
 7. [오늘의 복습 문제 조회 API](#7-오늘의-복습-문제-조회-api)
 8. [문제 풀이 제출 API](#8-문제-풀이-제출-api)
-9. [이메일 알림 설정 API](#9-이메일-알림-설정-api)
+9. [복습 루프 포함 설정 API](#9-복습-루프-포함-설정-api)
 
 ---
 
@@ -1736,12 +1737,12 @@ Cookie: accessToken={JWT_TOKEN}
 
 ---
 
-## 9. 이메일 알림 설정 API
+## 9. 복습 루프 포함 설정 API
 
 ### 9.1. 기본 정보
 
-- **Endpoint**: `PATCH /api/problems/{problemId}/email-notification`
-- **설명**: 그룹방 타인 문제에 대한 복습 이메일 알림 수신 여부를 설정합니다.
+- **Endpoint**: `PATCH /api/problems/{problemId}/review-inclusion`
+- **설명**: 그룹방 타인 문제를 복습 주기에 포함할지 설정합니다.
 - **인증**: 필수 (JWT 쿠키)
 
 ### 9.2. Request
@@ -1763,13 +1764,13 @@ Cookie: accessToken={JWT_TOKEN}
 
 | 필드 | 타입 | 필수 | 설명 | 예시 |
 |------|------|------|------|------|
-| receiveEmailNotification | Boolean | O | 이메일 알림 수신 여부 | true |
+| includeInReview | Boolean | O | 복습 루프 포함 여부 | true |
 
 #### Request Example
 
 ```json
 {
-  "receiveEmailNotification": true
+  "includeInReview": true
 }
 ```
 
@@ -1779,64 +1780,52 @@ Cookie: accessToken={JWT_TOKEN}
 
 | 필드 | 타입 | 설명 | 예시 |
 |------|------|------|------|
-| receiveEmailNotification | Boolean | 설정된 이메일 알림 수신 여부 | true |
-| message | String | 성공 메시지 | "이메일 알림 설정이 완료되었습니다." |
+| includeInReview | Boolean | 설정된 복습 루프 포함 여부 | true |
+| message | String | 성공 메시지 | "복습 루프 포함 설정이 완료되었습니다." |
 
 #### Response Examples
 
-**9.3.1. 알림 수신 설정**
+**9.3.1. 복습 루프 포함 설정**
 
 ```json
 {
-  "receiveEmailNotification": true,
-  "message": "이메일 알림 설정이 완료되었습니다."
+  "includeInReview": true,
+  "message": "복습 루프 포함 설정이 완료되었습니다."
 }
 ```
 
-**9.3.2. 알림 거부 설정**
+**9.3.2. 복습 루프 제외 설정**
 
 ```json
 {
-  "receiveEmailNotification": false,
-  "message": "이메일 알림 설정이 완료되었습니다."
+  "includeInReview": false,
+  "message": "복습 루프 포함 설정이 완료되었습니다."
 }
 ```
 
 ### 9.4. Error Responses
 
-#### 400 Bad Request - 문제를 풀지 않음
-
-**문제를 아직 풀지 않은 경우**
-```json
-{
-  "title": "문제를 풀지 않음",
-  "status": 400,
-  "detail": "아직 풀지 않은 문제입니다. 문제를 먼저 풀어주세요.",
-  "instance": "/api/problems/6/email-notification"
-}
-```
-
 #### 400 Bad Request - 본인 문제 설정 시도
 
-**본인이 만든 문제의 알림 설정을 변경하려는 경우**
+**본인이 만든 문제의 복습 루프 설정을 변경하려는 경우**
 ```json
 {
-  "title": "알림 설정 변경 불가",
+  "title": "복습 루프 설정 변경 불가",
   "status": 400,
-  "detail": "본인이 만든 문제는 이메일 알림 설정을 변경할 수 없습니다.",
-  "instance": "/api/problems/1/email-notification"
+  "detail": "본인이 만든 문제는 복습 루프 포함 설정을 변경할 수 없습니다.",
+  "instance": "/api/problems/1/review-inclusion"
 }
 ```
 
 #### 400 Bad Request - 이미 설정 완료
 
-**이미 알림 설정을 변경한 경우**
+**이미 복습 루프 포함 설정을 변경한 경우**
 ```json
 {
-  "title": "알림 설정 이미 완료",
+  "title": "복습 루프 설정 이미 완료",
   "status": 400,
-  "detail": "이메일 알림 설정은 한 번만 변경할 수 있습니다.",
-  "instance": "/api/problems/6/email-notification"
+  "detail": "복습 루프 포함 설정은 한 번만 변경할 수 있습니다.",
+  "instance": "/api/problems/6/review-inclusion"
 }
 ```
 
@@ -1848,7 +1837,7 @@ Cookie: accessToken={JWT_TOKEN}
   "title": "토큰을 찾을 수 없음",
   "status": 401,
   "detail": "인증 토큰이 제공되지 않았습니다.",
-  "instance": "/api/problems/6/email-notification"
+  "instance": "/api/problems/6/review-inclusion"
 }
 ```
 
@@ -1860,7 +1849,7 @@ Cookie: accessToken={JWT_TOKEN}
   "title": "문제를 찾을 수 없음",
   "status": 404,
   "detail": "요청한 ID의 문제가 존재하지 않습니다.",
-  "instance": "/api/problems/999/email-notification"
+  "instance": "/api/problems/999/review-inclusion"
 }
 ```
 
@@ -1868,64 +1857,77 @@ Cookie: accessToken={JWT_TOKEN}
 
 #### 9.5.1. 설정 가능 조건
 
-이메일 알림 설정을 변경하려면 다음 조건을 모두 만족해야 합니다:
+복습 루프 포함 설정을 변경하려면 다음 조건을 만족해야 합니다:
 
-1. **문제를 최소 한 번 이상 풀었어야 함**
-   - `ProblemReviewState`가 존재해야 함
-   - 문제를 풀지 않은 상태에서는 설정 불가
+1. **타인이 만든 그룹방 문제여야 함**
+   - 본인이 만든 문제는 항상 복습 루프 포함 필수 (true 고정)
+   - 본인 문제의 설정은 변경 불가
 
-2. **타인이 만든 문제여야 함**
-   - 본인이 만든 문제는 항상 이메일 알림 필수 (true 고정)
-   - 본인 문제의 알림 설정은 변경 불가
-
-3. **아직 설정을 변경하지 않았어야 함**
-   - 이메일 알림 설정은 문제당 **한 번만** 변경 가능
+2. **아직 설정을 변경하지 않았어야 함**
+   - 복습 루프 포함 설정은 문제당 **한 번만** 변경 가능
    - 이미 설정을 변경한 경우 재변경 불가
+
+3. **ReviewState 자동 생성**
+   - ReviewState가 없으면 이 API 호출 시 자동으로 생성됨 (복습 주기에 추가)
+   - 문제를 풀지 않은 상태에서도 이 API로 복습에 추가 가능
 
 #### 9.5.2. 기본 동작
 
 - **본인이 만든 문제**
-  - 이메일 알림: `true` (필수, 변경 불가)
-  - `emailNotificationConfigured`: `true` (처음부터 설정 완료 상태)
+  - 복습 루프 포함: `true` (필수, 변경 불가)
+  - `reviewInclusionConfigured`: `true` (처음부터 설정 완료 상태)
+  - 생성 시 자동으로 ReviewState 생성 및 복습 주기에 포함
 
 - **타인이 만든 문제 (그룹방)**
-  - 기본값: `false` (알림 받지 않음)
-  - 첫 풀이 후 한 번만 설정 가능
-  - 설정 후 `emailNotificationConfigured`: `true`
+  - 문제 풀이 시: ReviewState 생성 없음 (복습 주기에 미포함)
+  - 이 API 호출 시: ReviewState 생성 (복습 주기에 추가)
+  - 기본값: `false` (복습에 포함하지 않음)
+  - 한 번만 설정 가능, 설정 후 `reviewInclusionConfigured`: `true`
 
 #### 9.5.3. 사용 시나리오
 
-**시나리오 1: 그룹방 타인 문제를 처음 풀고 알림 받기**
+**시나리오 1: 그룹방 타인 문제를 풀고 복습에 추가**
 1. 그룹방의 다른 멤버가 만든 문제를 풀이 (`POST /api/problems/{problemId}/submit`)
-2. `ProblemReviewState` 자동 생성 (`receiveEmailNotification: false`, `emailNotificationConfigured: false`)
-3. 알림 수신 설정 (`PATCH /api/problems/{problemId}/email-notification`)
-4. `receiveEmailNotification: true`, `emailNotificationConfigured: true`로 변경
-5. 다음 날부터 해당 문제가 복습 알림 메일에 포함됨
+2. `ProblemReviewState` 생성되지 않음 (복습 주기 미포함)
+3. 복습 루프 포함 설정 (`PATCH /api/problems/{problemId}/review-inclusion`)
+4. `ProblemReviewState` 생성 및 `includeInReview: true`, `reviewInclusionConfigured: true`로 설정
+5. 다음 날부터 해당 문제가 "오늘의 복습"에 노출되고 이메일 알림에 포함됨
 
-**시나리오 2: 그룹방 타인 문제를 풀었지만 알림 거부**
+**시나리오 2: 그룹방 타인 문제를 풀었지만 복습 제외**
 1. 그룹방의 다른 멤버가 만든 문제를 풀이
-2. `ProblemReviewState` 자동 생성 (`receiveEmailNotification: false`)
-3. 알림 설정을 하지 않거나 `false`로 설정
-4. 해당 문제는 복습 알림 메일에 포함되지 않음
+2. `ProblemReviewState` 생성되지 않음
+3. 복습 루프 포함 설정을 하지 않음
+4. 해당 문제는 "오늘의 복습"에 노출되지 않음
 
-**시나리오 3: 본인 문제 알림 설정 시도 (실패)**
-1. 본인이 만든 문제에 대해 알림 설정 API 호출
+**시나리오 3: 문제를 풀지 않고 바로 복습에 추가**
+1. 그룹방의 다른 멤버 문제를 풀지 않은 상태
+2. 복습 루프 포함 설정 API 호출 (`includeInReview: true`)
+3. `ProblemReviewState` 생성 (GATE_1, nextReviewDate = 내일)
+4. 다음 날부터 "오늘의 복습"에 노출
+
+**시나리오 4: 본인 문제 설정 시도 (실패)**
+1. 본인이 만든 문제에 대해 복습 루프 포함 설정 API 호출
 2. `400 Bad Request` 응답 (본인 문제는 설정 변경 불가)
 
 ### 9.6. 주요 특징
 
-1. **선택적 알림 수신**
-   - 그룹방에서 타인이 만든 문제만 알림 수신 여부 선택 가능
-   - 본인이 만든 문제는 항상 알림 필수
+1. **복습 루프와 이메일 알림의 관계**
+   - `includeInReview`는 "문제가 복습 주기에 포함되는지" 여부를 결정
+   - 복습 루프에 1개 이상 문제가 있으면 이메일 알림 발송
+   - 이메일은 "개별 문제별"이 아닌 "복습할 문제가 있음"을 알림
 
-2. **1회 설정 제한**
+2. **선택적 복습 포함**
+   - 그룹방에서 타인이 만든 문제만 복습 포함 여부 선택 가능
+   - 본인이 만든 문제는 항상 복습에 포함 (필수)
+
+3. **1회 설정 제한**
    - 문제당 한 번만 설정 가능하여 의사 결정 명확성 보장
    - 무분별한 설정 변경 방지
 
-3. **문제 풀이 후 설정**
-   - 문제를 먼저 풀어본 후에 알림 여부 결정
-   - 문제의 난이도와 중요도를 파악한 후 선택 가능
+4. **유연한 복습 추가**
+   - 문제를 풀지 않고도 복습에 추가 가능
+   - ReviewState가 없으면 API 호출 시 자동 생성
 
-4. **기본값 false**
-   - 타인 문제는 기본적으로 알림을 보내지 않음
-   - 사용자가 명시적으로 선택한 문제만 알림 수신
+5. **기본값 false**
+   - 타인 문제는 기본적으로 복습에 포함하지 않음
+   - 사용자가 명시적으로 선택한 문제만 복습 주기에 포함

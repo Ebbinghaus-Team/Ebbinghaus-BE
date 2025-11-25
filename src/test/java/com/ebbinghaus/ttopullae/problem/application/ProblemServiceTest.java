@@ -1062,13 +1062,12 @@ class ProblemServiceTest {
     }
 
     @Test
-    @DisplayName("문제 풀이 제출 - 그룹방 타인 문제 첫 풀이 (ReviewState 생성)")
-    void submitProblemAnswer_GroupProblemFirstAttempt_CreateReviewState() {
+    @DisplayName("문제 풀이 제출 - 그룹방 타인 문제 첫 풀이 (ReviewState 생성 안 함)")
+    void submitProblemAnswer_GroupProblemFirstAttempt_NoReviewState() {
         // Given
         Long userId = 2L;
         Long problemId = 6L;
         String answer = "2";
-        LocalDate today = LocalDate.now();
 
         User mockUser = User.builder()
                 .userId(userId)
@@ -1104,19 +1103,10 @@ class ProblemServiceTest {
                 .correctChoiceIndex(2)
                 .build();
 
-        ProblemReviewState newReviewState = ProblemReviewState.builder()
-                .user(mockUser)
-                .problem(mockProblem)
-                .gate(ReviewGate.GATE_1)
-                .nextReviewDate(today.plusDays(1))
-                .reviewCount(0)
-                .build();
-
         given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
         given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
         given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
                 .willReturn(Optional.empty());
-        given(problemReviewStateRepository.save(any(ProblemReviewState.class))).willReturn(newReviewState);
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
                 new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
@@ -1125,15 +1115,17 @@ class ProblemServiceTest {
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
                 problemService.submitProblemAnswer(command);
 
-        // Then
+        // Then: ReviewState 없이 채점만 수행
         assertThat(result).isNotNull();
         assertThat(result.isCorrect()).isTrue();
-        assertThat(result.currentGate()).isEqualTo(ReviewGate.GATE_1);
-        assertThat(result.reviewCount()).isEqualTo(0);
-        assertThat(result.isFirstAttempt()).isFalse(); // 새로 생성된 ReviewState는 첫 시도가 아님
-        assertThat(result.isReviewStateChanged()).isFalse();
+        assertThat(result.currentGate()).isNull(); // ReviewState 없음
+        assertThat(result.reviewCount()).isNull(); // ReviewState 없음
+        assertThat(result.nextReviewDate()).isNull(); // ReviewState 없음
+        assertThat(result.isFirstAttempt()).isFalse(); // 오늘의 복습 아님
+        assertThat(result.isReviewStateChanged()).isFalse(); // 상태 변화 없음
 
-        verify(problemReviewStateRepository, times(1)).save(any(ProblemReviewState.class));
+        // ReviewState는 생성되지 않고, ProblemAttempt만 저장됨
+        verify(problemReviewStateRepository, never()).save(any(ProblemReviewState.class));
         verify(problemAttemptRepository, times(1)).save(any(ProblemAttempt.class));
     }
 

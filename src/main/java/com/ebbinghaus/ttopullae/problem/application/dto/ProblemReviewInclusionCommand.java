@@ -1,7 +1,7 @@
 package com.ebbinghaus.ttopullae.problem.application.dto;
 
-public record ProblemEmailNotificationCommand(
+public record ProblemReviewInclusionCommand(
         Long problemId,
-        Boolean receiveEmailNotification
+        Boolean includeInReview
 ) {
 }

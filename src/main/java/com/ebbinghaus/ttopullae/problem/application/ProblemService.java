@@ -212,8 +212,8 @@ public class ProblemService {
                     .gate(ReviewGate.GATE_1)
                     .nextReviewDate(LocalDate.now().plusDays(1))
                     .reviewCount(0)
-                    .receiveEmailNotification(true)  // 본인이 만든 문제는 무조건 이메일 알림 수신
-                    .emailNotificationConfigured(true)  // 본인 문제는 설정 변경 불가
+                    .includeInReview(true)  // 본인이 만든 문제는 무조건 복습 루프에 포함
+                    .reviewInclusionConfigured(true)  // 본인 문제는 설정 변경 불가
                     .build();
 
             problemReviewStateRepository.save(reviewState);
@@ -534,17 +534,17 @@ public class ProblemService {
     }
 
     /**
-     * 이메일 알림 설정 변경 (복습에 추가 역할 겸함)
+     * 복습 루프 포함 설정 변경 (복습에 추가 역할 겸함)
      */
     @Transactional
-    public Boolean configureEmailNotification(Long userId, com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand command) {
+    public Boolean configureReviewInclusion(Long userId, ProblemReviewInclusionCommand command) {
         User user = findUserById(userId);
         Problem problem = findProblemById(command.problemId());
 
         // 본인이 만든 문제인지 확인 (본인 문제는 설정 변경 불가)
         boolean isOwnProblem = problem.getCreator().getUserId().equals(user.getUserId());
         if (isOwnProblem) {
-            throw new ApplicationException(ProblemException.EMAIL_NOTIFICATION_NOT_CONFIGURABLE);
+            throw new ApplicationException(ProblemException.REVIEW_INCLUSION_NOT_CONFIGURABLE);
         }
 
         // ReviewState 조회 또는 생성 (그룹방 타인 문제를 복습에 추가하는 시점)
@@ -558,20 +558,20 @@ public class ProblemService {
                             .gate(ReviewGate.GATE_1)
                             .nextReviewDate(LocalDate.now().plusDays(1))
                             .reviewCount(0)
-                            .receiveEmailNotification(command.receiveEmailNotification())
-                            .emailNotificationConfigured(true)
+                            .includeInReview(command.includeInReview())
+                            .reviewInclusionConfigured(true)
                             .build();
                     return problemReviewStateRepository.save(newState);
                 });
 
         // 이미 설정했는지 확인
-        if (!reviewState.canConfigureEmailNotification()) {
-            throw new ApplicationException(ProblemException.EMAIL_NOTIFICATION_ALREADY_CONFIGURED);
+        if (!reviewState.canConfigureReviewInclusion()) {
+            throw new ApplicationException(ProblemException.REVIEW_INCLUSION_ALREADY_CONFIGURED);
         }
 
         // 설정 변경
-        reviewState.configureEmailNotification(command.receiveEmailNotification());
+        reviewState.configureReviewInclusion(command.includeInReview());
 
-        return command.receiveEmailNotification();
+        return command.includeInReview();
     }
 }

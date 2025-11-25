@@ -3,13 +3,13 @@ package com.ebbinghaus.ttopullae.problem.presentation;
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.problem.application.ProblemService;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
-import com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand;
+import com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
-import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationRequest;
-import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationResponse;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionRequest;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitResponse;
 import jakarta.validation.Valid;
@@ -55,19 +55,19 @@ public class ProblemController implements ProblemControllerDocs {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{problemId}/email-notification")
-    public ResponseEntity<ProblemEmailNotificationResponse> configureEmailNotification(
+    @PatchMapping("/{problemId}/review-inclusion")
+    public ResponseEntity<ProblemReviewInclusionResponse> configureReviewInclusion(
             @LoginUser Long userId,
             @PathVariable Long problemId,
-            @Valid @RequestBody ProblemEmailNotificationRequest request
+            @Valid @RequestBody ProblemReviewInclusionRequest request
     ) {
-        ProblemEmailNotificationCommand command = new ProblemEmailNotificationCommand(
+        ProblemReviewInclusionCommand command = new ProblemReviewInclusionCommand(
                 problemId,
-                request.receiveEmailNotification()
+                request.includeInReview()
         );
 
-        Boolean configured = problemService.configureEmailNotification(userId, command);
-        ProblemEmailNotificationResponse response = ProblemEmailNotificationResponse.of(configured);
+        Boolean configured = problemService.configureReviewInclusion(userId, command);
+        ProblemReviewInclusionResponse response = ProblemReviewInclusionResponse.of(configured);
         return ResponseEntity.ok(response);
     }
 }

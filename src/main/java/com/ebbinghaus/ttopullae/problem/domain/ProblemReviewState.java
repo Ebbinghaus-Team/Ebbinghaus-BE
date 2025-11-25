@@ -67,25 +67,25 @@ public class ProblemReviewState extends BaseTimeEntity {
     private LocalDate todayReviewFirstAttemptDate;
 
     /**
-     * 이메일 알림 수신 여부
-     * - true: 복습 알림 메일 받기
-     * - false: 복습 알림 메일 받지 않기 (기본값)
+     * 복습 루프 포함 여부
+     * - true: 복습 주기에 포함 (오늘의 복습에 노출)
+     * - false: 복습 주기에서 제외 (기본값)
      * - 본인이 생성한 문제는 항상 true (필수)
      * - 그룹방 타인 문제는 첫 풀이 후 설정 가능
      */
     @Builder.Default
-    @Column(nullable = false)
-    private Boolean receiveEmailNotification = Boolean.FALSE;
+    @Column(name = "receive_email_notification", nullable = false)
+    private Boolean includeInReview = Boolean.FALSE;
 
     /**
-     * 이메일 알림 설정 변경 여부
+     * 복습 루프 포함 설정 완료 여부
      * - true: 이미 설정을 변경함 (재변경 불가)
      * - false: 아직 설정 안 함 (변경 가능)
      * - 본인이 만든 문제는 처음부터 true (변경 불가)
      */
     @Builder.Default
-    @Column(nullable = false)
-    private Boolean emailNotificationConfigured = Boolean.FALSE;
+    @Column(name = "email_notification_configured", nullable = false)
+    private Boolean reviewInclusionConfigured = Boolean.FALSE;
 
     public void updateGate(ReviewGate gate, LocalDate nextDate) {
         this.gate = gate;
@@ -118,19 +118,19 @@ public class ProblemReviewState extends BaseTimeEntity {
     }
 
     /**
-     * 이메일 알림 수신 설정 변경
-     * @param receive 이메일 알림 수신 여부
+     * 복습 루프 포함 여부 설정 변경
+     * @param include 복습 루프 포함 여부
      */
-    public void configureEmailNotification(boolean receive) {
-        this.receiveEmailNotification = receive;
-        this.emailNotificationConfigured = true;
+    public void configureReviewInclusion(boolean include) {
+        this.includeInReview = include;
+        this.reviewInclusionConfigured = true;
     }
 
     /**
-     * 이메일 알림 설정이 가능한 상태인지 확인
+     * 복습 루프 포함 설정이 가능한 상태인지 확인
      * @return 설정 가능 여부 (아직 설정 안 한 경우 true)
      */
-    public boolean canConfigureEmailNotification() {
-        return !this.emailNotificationConfigured;
+    public boolean canConfigureReviewInclusion() {
+        return !this.reviewInclusionConfigured;
     }
 }

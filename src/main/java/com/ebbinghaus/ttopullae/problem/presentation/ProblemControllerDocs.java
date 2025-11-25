@@ -4,8 +4,8 @@ import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.global.exception.ErrorResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
-import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationRequest;
-import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationResponse;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionRequest;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -351,40 +351,46 @@ public interface ProblemControllerDocs {
     );
 
     @Operation(
-            summary = "문제 이메일 알림 설정",
+            summary = "문제 복습 루프 포함 설정",
             description = """
-                    그룹방 타인 문제에 대한 이메일 알림 수신 여부를 설정합니다.
+                    그룹방 타인 문제를 복습 주기에 포함할지 설정합니다.
+
+                    **복습 루프 포함 의미:**
+                    - true: 문제가 복습 주기에 포함되어 "오늘의 복습"에 노출
+                    - false: 문제가 복습 주기에서 제외
+                    - 복습 루프에 문제가 1개 이상 있으면 이메일 알림 발송
 
                     **설정 가능 조건:**
-                    - 문제를 최소 한 번 이상 풀었어야 함 (ReviewState가 존재해야 함)
-                    - 타인이 만든 문제여야 함 (본인이 만든 문제는 설정 변경 불가, 항상 true)
+                    - 타인이 만든 그룹방 문제여야 함
+                    - 본인이 만든 문제는 항상 true로 고정 (설정 변경 불가)
                     - 아직 설정을 변경하지 않았어야 함 (한 번만 설정 가능)
 
-                    **기본 동작:**
-                    - 본인이 만든 문제: 이메일 알림 필수 (true, 변경 불가)
-                    - 타인이 만든 문제: 기본값 false, 첫 풀이 후 한 번만 설정 가능
+                    **동작 방식:**
+                    - ReviewState가 없으면 이 API 호출 시 생성됨 (복습 주기에 추가)
+                    - 본인이 만든 문제: 생성 시 자동으로 복습 루프 포함 (true, 변경 불가)
+                    - 타인이 만든 문제: 기본값 false, 이 API로 한 번만 설정 가능
                     """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "이메일 알림 설정 성공",
+            @ApiResponse(responseCode = "200", description = "복습 루프 포함 설정 성공",
                     content = @Content(
-                            schema = @Schema(implementation = ProblemEmailNotificationResponse.class),
+                            schema = @Schema(implementation = ProblemReviewInclusionResponse.class),
                             examples = {
                                     @ExampleObject(
-                                            name = "알림 수신 설정 성공",
+                                            name = "복습 루프 포함 설정 성공",
                                             value = """
                                                     {
-                                                      "receiveEmailNotification": true,
-                                                      "message": "이메일 알림 설정이 완료되었습니다."
+                                                      "includeInReview": true,
+                                                      "message": "복습 루프 포함 설정이 완료되었습니다."
                                                     }
                                                     """
                                     ),
                                     @ExampleObject(
-                                            name = "알림 거부 설정 성공",
+                                            name = "복습 루프 제외 설정 성공",
                                             value = """
                                                     {
-                                                      "receiveEmailNotification": false,
-                                                      "message": "이메일 알림 설정이 완료되었습니다."
+                                                      "includeInReview": false,
+                                                      "message": "복습 루프 포함 설정이 완료되었습니다."
                                                     }
                                                     """
                                     )
@@ -397,24 +403,13 @@ public interface ProblemControllerDocs {
                             schema = @Schema(implementation = ErrorResponse.class),
                             examples = {
                                     @ExampleObject(
-                                            name = "문제를 풀지 않음",
-                                            value = """
-                                                    {
-                                                      "title": "문제를 풀지 않음",
-                                                      "status": 400,
-                                                      "detail": "아직 풀지 않은 문제입니다. 문제를 먼저 풀어주세요.",
-                                                      "instance": "/api/problems/6/email-notification"
-                                                    }
-                                                    """
-                                    ),
-                                    @ExampleObject(
                                             name = "본인 문제 설정 시도",
                                             value = """
                                                     {
-                                                      "title": "알림 설정 변경 불가",
+                                                      "title": "복습 루프 설정 변경 불가",
                                                       "status": 400,
-                                                      "detail": "본인이 만든 문제는 이메일 알림 설정을 변경할 수 없습니다.",
-                                                      "instance": "/api/problems/1/email-notification"
+                                                      "detail": "본인이 만든 문제는 복습 루프 포함 설정을 변경할 수 없습니다.",
+                                                      "instance": "/api/problems/1/review-inclusion"
                                                     }
                                                     """
                                     ),
@@ -422,10 +417,10 @@ public interface ProblemControllerDocs {
                                             name = "이미 설정 완료",
                                             value = """
                                                     {
-                                                      "title": "알림 설정 이미 완료",
+                                                      "title": "복습 루프 설정 이미 완료",
                                                       "status": 400,
-                                                      "detail": "이메일 알림 설정은 한 번만 변경할 수 있습니다.",
-                                                      "instance": "/api/problems/6/email-notification"
+                                                      "detail": "복습 루프 포함 설정은 한 번만 변경할 수 있습니다.",
+                                                      "instance": "/api/problems/6/review-inclusion"
                                                     }
                                                     """
                                     )
@@ -443,7 +438,7 @@ public interface ProblemControllerDocs {
                                               "title": "토큰을 찾을 수 없음",
                                               "status": 401,
                                               "detail": "인증 토큰이 제공되지 않았습니다.",
-                                              "instance": "/api/problems/6/email-notification"
+                                              "instance": "/api/problems/6/review-inclusion"
                                             }
                                             """
                             )
@@ -460,17 +455,17 @@ public interface ProblemControllerDocs {
                                               "title": "문제를 찾을 수 없음",
                                               "status": 404,
                                               "detail": "요청한 ID의 문제가 존재하지 않습니다.",
-                                              "instance": "/api/problems/999/email-notification"
+                                              "instance": "/api/problems/999/review-inclusion"
                                             }
                                             """
                             )
                     )
             )
     })
-    @PatchMapping("/{problemId}/email-notification")
-    ResponseEntity<ProblemEmailNotificationResponse> configureEmailNotification(
+    @PatchMapping("/{problemId}/review-inclusion")
+    ResponseEntity<ProblemReviewInclusionResponse> configureReviewInclusion(
             @Parameter(hidden = true) @LoginUser Long userId,
             @PathVariable Long problemId,
-            @Valid @RequestBody ProblemEmailNotificationRequest request
+            @Valid @RequestBody ProblemReviewInclusionRequest request
     );
 }
