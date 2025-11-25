@@ -754,7 +754,7 @@ class ProblemServiceTest {
                 .willReturn(Optional.of(mockReviewState));
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -823,7 +823,7 @@ class ProblemServiceTest {
                 .willReturn(Optional.of(mockReviewState));
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -892,7 +892,7 @@ class ProblemServiceTest {
                 .willReturn(Optional.of(mockReviewState));
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -960,7 +960,7 @@ class ProblemServiceTest {
                 .willReturn(Optional.of(mockReviewState));
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -1043,7 +1043,7 @@ class ProblemServiceTest {
         given(aiGradingService.gradeSubjectiveAnswer(any())).willReturn(aiResult);
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -1119,7 +1119,7 @@ class ProblemServiceTest {
         given(problemReviewStateRepository.save(any(ProblemReviewState.class))).willReturn(newReviewState);
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -1188,7 +1188,7 @@ class ProblemServiceTest {
                 .willReturn(Optional.of(mockReviewState));
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult result =
@@ -1217,7 +1217,7 @@ class ProblemServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When & Then
         assertThatThrownBy(() -> problemService.submitProblemAnswer(command))
@@ -1247,7 +1247,7 @@ class ProblemServiceTest {
         given(problemRepository.findById(problemId)).willReturn(Optional.empty());
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
-                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer, true);
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
 
         // When & Then
         assertThatThrownBy(() -> problemService.submitProblemAnswer(command))

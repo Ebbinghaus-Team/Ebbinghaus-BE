@@ -8,6 +8,8 @@ import com.ebbinghaus.ttopullae.problem.domain.*;
 import com.ebbinghaus.ttopullae.problem.domain.repository.*;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
+import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoomMember;
+import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomMemberRepository;
 import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomRepository;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
@@ -65,6 +67,9 @@ class ProblemSubmitControllerTest {
 
     @Autowired
     private ProblemAttemptRepository problemAttemptRepository;
+
+    @Autowired
+    private StudyRoomMemberRepository studyRoomMemberRepository;
 
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
@@ -228,8 +233,8 @@ class ProblemSubmitControllerTest {
     // 졸업 문제 테스트는 단위 테스트에서 커버됨
 
     @Test
-    @DisplayName("그룹방 타인 문제 첫 풀이 - ReviewState 자동 생성")
-    void submitProblem_GroupOtherUserProblem_CreateReviewState() throws Exception {
+    @DisplayName("그룹방 타인 문제 첫 풀이 - ReviewState 생성하지 않음")
+    void submitProblem_GroupOtherUserProblem_NoReviewStateCreation() throws Exception {
         // Given: 다른 사용자의 그룹방 문제 (ReviewState 없음)
         User otherUser = User.builder()
                 .email("other@example.com")
@@ -248,6 +253,14 @@ class ProblemSubmitControllerTest {
                 .joinCode("GROUP123")
                 .build();
         studyRoomRepository.save(groupRoom);
+
+        // testUser를 그룹 멤버로 추가
+        StudyRoomMember member = StudyRoomMember.builder()
+                .user(testUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(member);
 
         Problem problem = Problem.builder()
                 .creator(otherUser)
@@ -275,16 +288,18 @@ class ProblemSubmitControllerTest {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isCorrect").value(true))
-                .andExpect(jsonPath("$.currentGate").value("GATE_1"))
-                .andExpect(jsonPath("$.reviewCount").value(0))
-                .andExpect(jsonPath("$.nextReviewDate").value(today.plusDays(1).toString()))
+                .andExpect(jsonPath("$.explanation").value("해설"))
+                .andExpect(jsonPath("$.currentGate").isEmpty())  // null
+                .andExpect(jsonPath("$.reviewCount").isEmpty())  // null
+                .andExpect(jsonPath("$.nextReviewDate").isEmpty())  // null
+                .andExpect(jsonPath("$.isFirstAttempt").value(false))
                 .andExpect(jsonPath("$.isReviewStateChanged").value(false));
 
-        // ReviewState 생성 확인
-        ProblemReviewState newState = problemReviewStateRepository.findByUserAndProblem(testUser, problem).get();
-        assertThat(newState).isNotNull();
-        assertThat(newState.getGate()).isEqualTo(ReviewGate.GATE_1);
-        assertThat(newState.getNextReviewDate()).isEqualTo(today.plusDays(1));
+        // ReviewState 생성되지 않음 확인
+        assertThat(problemReviewStateRepository.findByUserAndProblem(testUser, problem)).isEmpty();
+
+        // ProblemAttempt는 생성됨 확인 (풀이 기록)
+        assertThat(problemAttemptRepository.count()).isEqualTo(1);
     }
 
     @Test
@@ -380,6 +395,191 @@ class ProblemSubmitControllerTest {
         return problem;
     }
 
+    @Test
+    @DisplayName("첫 시도 우선 법칙 - GATE_1 틀림 후 당일 재시도 성공해도 강등 상태 유지")
+    void submitProblem_Gate1_FailThenSuccessSameDay_StayGate1() throws Exception {
+        // Given: GATE_1, 오늘의 복습 문제
+        Problem problem = createMcqProblem();
+        ProblemReviewState reviewState = ProblemReviewState.builder()
+                .user(testUser)
+                .problem(problem)
+                .gate(ReviewGate.GATE_1)
+                .nextReviewDate(today)
+                .reviewCount(0)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_1)
+                .todayReviewFirstAttemptDate(null)  // 아직 첫 시도 안 함
+                .build();
+        problemReviewStateRepository.save(reviewState);
+
+        // When 1: 첫 시도 - 틀림
+        Map<String, Object> wrongRequest = new HashMap<>();
+        wrongRequest.put("answer", "1");  // 오답 (정답은 3)
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(wrongRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(false))
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))  // 유지
+                .andExpect(jsonPath("$.reviewCount").value(1))
+                .andExpect(jsonPath("$.nextReviewDate").value(today.plusDays(1).toString()))
+                .andExpect(jsonPath("$.isFirstAttempt").value(true))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(true));
+
+        // When 2: 재시도 - 성공 (같은 날)
+        Map<String, Object> correctRequest = new HashMap<>();
+        correctRequest.put("answer", "3");  // 정답
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(true))
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))  // 여전히 GATE_1
+                .andExpect(jsonPath("$.reviewCount").value(1))  // 변화 없음
+                .andExpect(jsonPath("$.isFirstAttempt").value(false))  // 재시도
+                .andExpect(jsonPath("$.isReviewStateChanged").value(false));  // 상태 불변
+
+        // Then: GATE_1 유지 확인
+        ProblemReviewState updatedState = problemReviewStateRepository.findByUserAndProblem(testUser, problem).get();
+        assertThat(updatedState.getGate()).isEqualTo(ReviewGate.GATE_1);
+        assertThat(updatedState.getReviewCount()).isEqualTo(1);
+        assertThat(problemAttemptRepository.count()).isEqualTo(2);  // 2번 시도
+    }
+
+    @Test
+    @DisplayName("첫 시도 우선 법칙 - GATE_2 틀려서 강등 후 당일 성공해도 GATE_1 유지")
+    void submitProblem_Gate2_FailDemoteThenSuccessSameDay_StayGate1() throws Exception {
+        // Given: GATE_2, 오늘의 복습 문제
+        Problem problem = createOxProblem();
+        ProblemReviewState reviewState = ProblemReviewState.builder()
+                .user(testUser)
+                .problem(problem)
+                .gate(ReviewGate.GATE_2)
+                .nextReviewDate(today)
+                .reviewCount(1)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_2)
+                .todayReviewFirstAttemptDate(null)
+                .build();
+        problemReviewStateRepository.save(reviewState);
+
+        // When 1: 첫 시도 - 틀림 (GATE_2 → GATE_1 강등)
+        Map<String, Object> wrongRequest = new HashMap<>();
+        wrongRequest.put("answer", "true");  // 오답 (정답은 false)
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(wrongRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(false))
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))  // 강등됨
+                .andExpect(jsonPath("$.reviewCount").value(2))
+                .andExpect(jsonPath("$.isFirstAttempt").value(true))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(true));
+
+        // When 2: 재시도 - 성공 (같은 날)
+        Map<String, Object> correctRequest = new HashMap<>();
+        correctRequest.put("answer", "false");  // 정답
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(true))
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))  // GATE_1 유지 (다시 승급 안 됨)
+                .andExpect(jsonPath("$.reviewCount").value(2))  // 변화 없음
+                .andExpect(jsonPath("$.isFirstAttempt").value(false))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(false));
+
+        // Then: GATE_1 유지 확인 (GATE_2로 다시 승급 안 됨)
+        ProblemReviewState updatedState = problemReviewStateRepository.findByUserAndProblem(testUser, problem).get();
+        assertThat(updatedState.getGate()).isEqualTo(ReviewGate.GATE_1);
+        assertThat(updatedState.getReviewCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("첫 시도 우선 법칙 - 오늘의 복습 문제는 여러 번 풀 수 있음")
+    void submitProblem_TodayReview_CanRetryMultipleTimes() throws Exception {
+        // Given: GATE_1, 오늘의 복습 문제
+        Problem problem = createShortProblem();
+        ProblemReviewState reviewState = ProblemReviewState.builder()
+                .user(testUser)
+                .problem(problem)
+                .gate(ReviewGate.GATE_1)
+                .nextReviewDate(today)
+                .reviewCount(0)
+                .todayReviewIncludedDate(today)
+                .todayReviewIncludedGate(ReviewGate.GATE_1)
+                .todayReviewFirstAttemptDate(null)
+                .build();
+        problemReviewStateRepository.save(reviewState);
+
+        // When 1: 첫 시도 - 성공 (GATE_1 → GATE_2 승급)
+        Map<String, Object> correctRequest1 = new HashMap<>();
+        correctRequest1.put("answer", "Garbage Collector");  // 정답
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctRequest1)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(true))
+                .andExpect(jsonPath("$.currentGate").value("GATE_2"))  // 승급
+                .andExpect(jsonPath("$.reviewCount").value(1))
+                .andExpect(jsonPath("$.isFirstAttempt").value(true))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(true));
+
+        // When 2: 재시도 1 - 틀림 (상태 불변)
+        Map<String, Object> wrongRequest = new HashMap<>();
+        wrongRequest.put("answer", "JVM");  // 오답
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(wrongRequest)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(false))
+                .andExpect(jsonPath("$.currentGate").value("GATE_2"))  // 여전히 GATE_2
+                .andExpect(jsonPath("$.reviewCount").value(1))  // 변화 없음
+                .andExpect(jsonPath("$.isFirstAttempt").value(false))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(false));
+
+        // When 3: 재시도 2 - 성공 (상태 불변)
+        Map<String, Object> correctRequest2 = new HashMap<>();
+        correctRequest2.put("answer", "Garbage Collector");  // 정답
+
+        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctRequest2)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isCorrect").value(true))
+                .andExpect(jsonPath("$.currentGate").value("GATE_2"))  // 여전히 GATE_2
+                .andExpect(jsonPath("$.reviewCount").value(1))  // 변화 없음
+                .andExpect(jsonPath("$.isFirstAttempt").value(false))
+                .andExpect(jsonPath("$.isReviewStateChanged").value(false));
+
+        // Then: GATE_2 유지, 여러 번 풀어도 상태 변화 없음
+        ProblemReviewState updatedState = problemReviewStateRepository.findByUserAndProblem(testUser, problem).get();
+        assertThat(updatedState.getGate()).isEqualTo(ReviewGate.GATE_2);
+        assertThat(updatedState.getReviewCount()).isEqualTo(1);
+        assertThat(problemAttemptRepository.count()).isEqualTo(3);  // 3번 시도
+    }
+
+    // Helper methods
     private void createChoices(Problem problem) {
         List<String> choices = List.of("private", "protected", "default", "public");
         for (int i = 0; i < choices.size(); i++) {
