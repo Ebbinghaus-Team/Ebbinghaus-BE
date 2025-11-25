@@ -541,8 +541,8 @@ public class ProblemService {
      * 이메일 알림 설정 변경
      */
     @Transactional
-    public void configureEmailNotification(com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand command) {
-        User user = findUserById(command.userId());
+    public Boolean configureEmailNotification(Long userId, com.ebbinghaus.ttopullae.problem.application.dto.ProblemEmailNotificationCommand command) {
+        User user = findUserById(userId);
         Problem problem = findProblemById(command.problemId());
 
         // ReviewState 존재 확인
@@ -563,5 +563,7 @@ public class ProblemService {
 
         // 설정 변경
         reviewState.configureEmailNotification(command.receiveEmailNotification());
+
+        return command.receiveEmailNotification();
     }
 }

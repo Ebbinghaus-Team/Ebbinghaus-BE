@@ -9,6 +9,7 @@ import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationRequest;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemEmailNotificationResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitResponse;
 import jakarta.validation.Valid;
@@ -55,18 +56,18 @@ public class ProblemController implements ProblemControllerDocs {
     }
 
     @PatchMapping("/{problemId}/email-notification")
-    public ResponseEntity<Void> configureEmailNotification(
+    public ResponseEntity<ProblemEmailNotificationResponse> configureEmailNotification(
             @LoginUser Long userId,
             @PathVariable Long problemId,
             @Valid @RequestBody ProblemEmailNotificationRequest request
     ) {
         ProblemEmailNotificationCommand command = new ProblemEmailNotificationCommand(
-                userId,
                 problemId,
                 request.receiveEmailNotification()
         );
 
-        problemService.configureEmailNotification(command);
-        return ResponseEntity.ok().build();
+        Boolean configured = problemService.configureEmailNotification(userId, command);
+        ProblemEmailNotificationResponse response = ProblemEmailNotificationResponse.of(configured);
+        return ResponseEntity.ok(response);
     }
 }

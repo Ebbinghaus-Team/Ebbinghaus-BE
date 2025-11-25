@@ -69,13 +69,13 @@ public class ProblemReviewState extends BaseTimeEntity {
     /**
      * 이메일 알림 수신 여부
      * - true: 복습 알림 메일 받기
-     * - false: 복습 알림 메일 받지 않기
+     * - false: 복습 알림 메일 받지 않기 (기본값)
      * - 본인이 생성한 문제는 항상 true (필수)
      * - 그룹방 타인 문제는 첫 풀이 후 설정 가능
      */
     @Builder.Default
     @Column(nullable = false)
-    private Boolean receiveEmailNotification = Boolean.TRUE;
+    private Boolean receiveEmailNotification = Boolean.FALSE;
 
     /**
      * 이메일 알림 설정 변경 여부
