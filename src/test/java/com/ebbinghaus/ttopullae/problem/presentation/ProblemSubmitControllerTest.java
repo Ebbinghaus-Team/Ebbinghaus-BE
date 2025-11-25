@@ -2,8 +2,6 @@ package com.ebbinghaus.ttopullae.problem.presentation;
 
 import com.ebbinghaus.ttopullae.global.util.JwtTokenProvider;
 import com.ebbinghaus.ttopullae.problem.application.AiGradingService;
-import com.ebbinghaus.ttopullae.problem.application.dto.AiGradingRequest;
-import com.ebbinghaus.ttopullae.problem.application.dto.AiGradingResult;
 import com.ebbinghaus.ttopullae.problem.domain.*;
 import com.ebbinghaus.ttopullae.problem.domain.repository.*;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
@@ -21,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,7 +72,7 @@ class ProblemSubmitControllerTest {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
-    @MockBean
+    @MockitoBean
     private AiGradingService aiGradingService;
 
     private User testUser;
@@ -130,7 +128,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "3");  // 정답
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -173,7 +171,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "true");  // 오답 (정답은 false)
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -212,7 +210,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "Garbage Collector");  // 정답
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -281,7 +279,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "1");  // 정답
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -312,7 +310,7 @@ class ProblemSubmitControllerTest {
         // answer 필드 누락
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -330,7 +328,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "3");
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
@@ -345,7 +343,7 @@ class ProblemSubmitControllerTest {
         request.put("answer", "3");
 
         // When & Then
-        mockMvc.perform(post("/api/problems/{problemId}/submit", 99999L)
+        mockMvc.perform(post("/api/{problemId}/submit", 99999L)
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -416,7 +414,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> wrongRequest = new HashMap<>();
         wrongRequest.put("answer", "1");  // 오답 (정답은 3)
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(wrongRequest)))
@@ -433,7 +431,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> correctRequest = new HashMap<>();
         correctRequest.put("answer", "3");  // 정답
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(correctRequest)))
@@ -473,7 +471,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> wrongRequest = new HashMap<>();
         wrongRequest.put("answer", "true");  // 오답 (정답은 false)
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(wrongRequest)))
@@ -489,7 +487,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> correctRequest = new HashMap<>();
         correctRequest.put("answer", "false");  // 정답
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(correctRequest)))
@@ -528,7 +526,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> correctRequest1 = new HashMap<>();
         correctRequest1.put("answer", "Garbage Collector");  // 정답
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(correctRequest1)))
@@ -544,7 +542,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> wrongRequest = new HashMap<>();
         wrongRequest.put("answer", "JVM");  // 오답
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(wrongRequest)))
@@ -560,7 +558,7 @@ class ProblemSubmitControllerTest {
         Map<String, Object> correctRequest2 = new HashMap<>();
         correctRequest2.put("answer", "Garbage Collector");  // 정답
 
-        mockMvc.perform(post("/api/problems/{problemId}/submit", problem.getProblemId())
+        mockMvc.perform(post("/api/{problemId}/submit", problem.getProblemId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(correctRequest2)))

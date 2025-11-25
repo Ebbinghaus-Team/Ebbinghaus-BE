@@ -8,6 +8,8 @@ import com.ebbinghaus.ttopullae.problem.domain.repository.*;
 import com.ebbinghaus.ttopullae.problem.exception.ProblemException;
 import com.ebbinghaus.ttopullae.studyroom.domain.RoomType;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
+import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoomMember;
+import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomMemberRepository;
 import com.ebbinghaus.ttopullae.studyroom.domain.repository.StudyRoomRepository;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import com.ebbinghaus.ttopullae.user.domain.repository.UserRepository;
@@ -49,6 +51,9 @@ class ProblemServiceTest {
 
     @Mock
     private StudyRoomRepository studyRoomRepository;
+
+    @Mock
+    private StudyRoomMemberRepository studyRoomMemberRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -1107,6 +1112,8 @@ class ProblemServiceTest {
         given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
         given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
                 .willReturn(Optional.empty());
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, mockStudyRoom, true))
+                .willReturn(true);
 
         com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand command =
                 new com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand(userId, problemId, answer);
