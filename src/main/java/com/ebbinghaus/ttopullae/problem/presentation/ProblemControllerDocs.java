@@ -200,7 +200,8 @@ public interface ProblemControllerDocs {
                     - **오늘의 복습 문제 첫 시도**: 채점 + 상태 전이 (GATE 승급/강등)
                     - **오늘의 복습 문제 재시도**: 채점만 제공 (상태 불변)
                     - **비복습 문제** (미래/졸업 문제): 채점만 제공 (상태 불변)
-                    - **그룹방 타인 문제 첫 풀이**: ReviewState 생성 + 채점 (다음 날부터 복습 시작)
+                    - **그룹방 타인 문제 첫 풀이**: ReviewState 생성 없음, 채점만 제공 (복습 상태 필드들은 null 반환)
+                      - 복습 루프에 추가하려면 별도의 "복습 루프 포함 설정 API" 호출 필요
 
                     **답안 형식:**
                     - 객관식: 선택지 인덱스 (0부터 시작, 문자열로 전달)
@@ -287,7 +288,22 @@ public interface ProblemControllerDocs {
                                                       "isReviewStateChanged": false
                                                     }
                                                     """
-                                            )
+                                            ),
+                                    @ExampleObject(
+                                            name = "그룹방 타인 문제 첫 풀이 (ReviewState 없음)",
+                                            value = """
+                                                    {
+                                                      "isCorrect": true,
+                                                      "explanation": "JVM은 Java Virtual Machine의 약자로 자바 가상 머신을 의미합니다.",
+                                                      "aiFeedback": null,
+                                                      "currentGate": null,
+                                                      "reviewCount": null,
+                                                      "nextReviewDate": null,
+                                                      "isFirstAttempt": false,
+                                                      "isReviewStateChanged": false
+                                                    }
+                                                    """
+                                    )
                                     }
                             )
                     ),

@@ -1609,7 +1609,24 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-**8.3.5. 비복습 문제 풀이 (미래 문제 또는 졸업 문제)**
+**8.3.5. 그룹방 타인 문제 첫 풀이 (ReviewState 없음)**
+
+```json
+{
+  "isCorrect": true,
+  "explanation": "JVM은 Java Virtual Machine의 약자로 자바 가상 머신을 의미합니다.",
+  "aiFeedback": null,
+  "currentGate": null,
+  "reviewCount": null,
+  "nextReviewDate": null,
+  "isFirstAttempt": false,
+  "isReviewStateChanged": false
+}
+```
+
+**설명**: 그룹방에서 타인이 만든 문제를 처음 풀 경우, ReviewState가 생성되지 않아 복습 상태 관련 필드들이 모두 null로 반환됩니다. 복습 루프에 추가하려면 별도로 "복습 루프 포함 설정 API"를 호출해야 합니다.
+
+**8.3.6. 비복습 문제 풀이 (미래 문제 또는 졸업 문제)**
 
 ```json
 {
@@ -1670,7 +1687,9 @@ Cookie: accessToken={JWT_TOKEN}
      ↓
 [ReviewState 조회]
      ↓
-     ├─ 없음? → [ReviewState 생성] → [채점만 제공, 상태 불변]
+     ├─ 없음? → [채점만 제공, 복습 상태 필드 null 반환]
+     │          (그룹방 타인 문제 첫 풀이 케이스)
+     │          복습 루프 추가는 별도 API 사용
      ↓
      └─ 있음
           ↓
@@ -1705,10 +1724,11 @@ Cookie: accessToken={JWT_TOKEN}
 #### 8.5.3. 그룹방 타인 문제 첫 풀이
 
 그룹방에서 다른 멤버가 만든 문제를 처음 풀 때:
-1. `ProblemReviewState` 자동 생성
-2. gate = `GATE_1`, nextReviewDate = `today + 1일`
-3. 채점만 제공 (상태 전이 없음)
-4. 다음 날부터 "오늘의 복습 문제"로 조회됨
+1. `ProblemReviewState` 생성되지 않음 (복습 루프에 자동 추가 안 됨)
+2. 채점만 제공 (상태 전이 없음)
+3. 복습 상태 관련 필드는 모두 null 반환 (currentGate, reviewCount, nextReviewDate)
+4. 복습 루프에 추가하려면 별도로 "복습 루프 포함 설정 API" (`PATCH /api/problems/{problemId}/review-inclusion`) 호출 필요
+5. 복습 루프 포함 설정 후 다음 날부터 "오늘의 복습 문제"로 조회됨
 
 #### 8.5.4. 채점 로직
 
