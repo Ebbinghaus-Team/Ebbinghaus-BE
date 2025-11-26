@@ -10,7 +10,8 @@
       "Bash(./gradlew test:*)",
       "Bash(mkdir:*)",
       "Bash(gh auth login:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

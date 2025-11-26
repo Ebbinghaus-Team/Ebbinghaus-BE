@@ -27,8 +27,9 @@ public class StudyRoomMember extends BaseTimeEntity {
     @JoinColumn(name = "study_room_id", nullable = false)
     private StudyRoom studyRoom;
 
+    @Builder.Default
     @Column(nullable = false)
-    private Boolean active;
+    private Boolean active = Boolean.TRUE;
 
     public void deactivate() {
         this.active = false;

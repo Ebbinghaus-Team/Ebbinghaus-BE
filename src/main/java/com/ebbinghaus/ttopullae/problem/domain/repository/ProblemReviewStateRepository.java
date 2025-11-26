@@ -1,11 +1,13 @@
 package com.ebbinghaus.ttopullae.problem.domain.repository;
 
+import com.ebbinghaus.ttopullae.problem.domain.Problem;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +16,8 @@ import org.springframework.data.repository.query.Param;
 public interface ProblemReviewStateRepository extends JpaRepository<ProblemReviewState, Long> {
 
     int countByUserAndProblem_StudyRoomAndGate(User user, StudyRoom studyRoom, ReviewGate gate);
+
+    Optional<ProblemReviewState> findByUserAndProblem(User user, Problem problem);
 
     /**
      * 오늘의 복습 문제 스냅샷을 생성합니다. (벌크 업데이트)
