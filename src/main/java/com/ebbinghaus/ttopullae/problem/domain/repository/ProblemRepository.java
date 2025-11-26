@@ -35,4 +35,40 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
         @Param("userId") Long userId,
         @Param("targetGate") ReviewGate targetGate
     );
+
+    /**
+     * 그룹 공부방의 문제 목록을 복습 상태와 생성자 정보와 함께 조회합니다.
+     * Boolean 플래그 방식을 사용하여 동적 필터링을 지원합니다.
+     *
+     * 필터 조합:
+     * - ALL: includeAll=true, includeNotInReview=false, targetGate=null
+     * - NOT_IN_REVIEW: includeAll=false, includeNotInReview=true, targetGate=null
+     * - GATE_1/GATE_2/GRADUATED: includeAll=false, includeNotInReview=false, targetGate=해당관문
+     *
+     * @param studyRoomId 스터디룸 ID
+     * @param userId 사용자 ID
+     * @param includeAll 모든 문제 포함 여부 (ALL 필터)
+     * @param includeNotInReview ReviewState 없는 문제 포함 여부 (NOT_IN_REVIEW 필터)
+     * @param targetGate 특정 관문 필터 (GATE_1/GATE_2/GRADUATED)
+     * @return 문제 목록 (creator fetch join, reviewStates left join 완료)
+     */
+    @Query("""
+        SELECT DISTINCT p FROM Problem p
+        LEFT JOIN FETCH p.creator
+        LEFT JOIN FETCH p.reviewStates rs ON rs.user.userId = :userId
+        WHERE p.studyRoom.studyRoomId = :studyRoomId
+          AND (
+            :includeAll = true
+            OR (:includeNotInReview = true AND rs.stateId IS NULL)
+            OR (:targetGate IS NOT NULL AND rs.gate = :targetGate)
+          )
+        ORDER BY p.createdAt DESC
+        """)
+    List<Problem> findGroupRoomProblemsWithReviewStateAndCreator(
+        @Param("studyRoomId") Long studyRoomId,
+        @Param("userId") Long userId,
+        @Param("includeAll") boolean includeAll,
+        @Param("includeNotInReview") boolean includeNotInReview,
+        @Param("targetGate") ReviewGate targetGate
+    );
 }

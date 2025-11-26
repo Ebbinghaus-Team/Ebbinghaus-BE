@@ -18,7 +18,8 @@
 4. [문제 생성 API](#4-문제-생성-api)
 5. [AI 채점 테스트 API](#5-ai-채점-테스트-api)
 6. [개인 공부방 문제 목록 조회 API](#6-개인-공부방-문제-목록-조회-api)
-7. [오늘의 복습 문제 조회 API](#7-오늘의-복습-문제-조회-api)
+7. [그룹 공부방 문제 목록 조회 API](#7-그룹-공부방-문제-목록-조회-api)
+8. [오늘의 복습 문제 조회 API](#8-오늘의-복습-문제-조회-api)
 8. [문제 풀이 제출 API](#8-문제-풀이-제출-api)
 9. [복습 루프 포함 설정 API](#9-복습-루프-포함-설정-api)
 
@@ -1226,7 +1227,284 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 7. 오늘의 복습 문제 조회 API
+## 7. 그룹 공부방 문제 목록 조회 API
+
+### 7.1. 기본 정보
+
+- **Endpoint**: `GET /api/study-rooms/group/{studyRoomId}/problems`
+- **설명**: 그룹 공부방에 등록된 문제 목록을 조회합니다. 복습 관문(GATE_1, GATE_2, GRADUATED)별로 필터링할 수 있으며, 복습 루프에 포함되지 않은 문제(NOT_IN_REVIEW)도 조회할 수 있습니다.
+- **인증**: **필수** (JWT 쿠키 인증)
+
+### 7.2. Request
+
+#### 7.2.1. Headers
+
+```
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### 7.2.2. Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 예시 |
+|---------|------|------|------|------|
+| studyRoomId | Long | O | 조회할 그룹 공부방 ID | 2 |
+
+#### 7.2.3. Query Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 기본값 | 가능한 값 |
+|---------|------|------|------|--------|----------|
+| filter | String | X | 필터 타입 | "ALL" | "ALL", "NOT_IN_REVIEW", "GATE_1", "GATE_2", "GRADUATED" |
+
+**필터 설명**:
+- `ALL`: 모든 문제 조회 (기본값)
+- `NOT_IN_REVIEW`: 복습 루프에 포함되지 않은 문제 (ProblemReviewState가 없는 문제, 즉 그룹 공부방 타인이 등록한 문제 중 풀지 않은 문제 혹은 타인이 등록한 문제 중 풀었지만 복습 루프에 등록하지 않은 문제)
+- `GATE_1`: 1일차 복습 관문의 문제만 조회
+- `GATE_2`: 7일차 복습 관문의 문제만 조회
+- `GRADUATED`: 복습을 완료한 문제만 조회
+
+#### 7.2.4. Request Example
+
+```http
+GET /api/study-rooms/group/2/problems?filter=ALL
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+```http
+GET /api/study-rooms/group/2/problems?filter=NOT_IN_REVIEW
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 7.3. Response
+
+#### 7.3.1. Success Response (200 OK)
+
+##### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| studyRoomId | Long | 스터디룸 ID | 2 |
+| studyRoomName | String | 스터디룸 이름 | "알고리즘 스터디" |
+| problems | List\<ProblemSummary\> | 문제 목록 | [...] |
+| totalCount | Integer | 전체 문제 수 | 5 |
+
+##### ProblemSummary 필드
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| problemId | Long | 문제 ID | 10 |
+| question | String | 문제 내용 | "이진 탐색 트리를 설명하시오" |
+| problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "SUBJECTIVE" |
+| reviewGate | String | 현재 복습 관문 (null 가능) | "GATE_1" |
+| createdAt | String (ISO 8601) | 문제 생성 일시 | "2025-01-17T10:00:00" |
+| lastReviewedAt | String (ISO 8601) | 마지막 복습 일시 (null 가능) | "2025-01-18T14:30:00" |
+| reviewCount | Integer | 복습 횟수 | 1 |
+| isMyProblem | Boolean | 내가 생성한 문제 여부 | true |
+| creatorName | String | 문제 생성자 이름 | "김철수" |
+
+##### Response Example (모든 문제 조회)
+
+```json
+{
+  "studyRoomId": 2,
+  "studyRoomName": "알고리즘 스터디",
+  "problems": [
+    {
+      "problemId": 10,
+      "question": "이진 탐색 트리를 설명하시오",
+      "problemType": "SUBJECTIVE",
+      "reviewGate": "GATE_1",
+      "createdAt": "2025-01-17T10:00:00",
+      "lastReviewedAt": "2025-01-18T14:30:00",
+      "reviewCount": 1,
+      "isMyProblem": true,
+      "creatorName": "김철수"
+    },
+    {
+      "problemId": 11,
+      "question": "다익스트라 알고리즘의 시간 복잡도는?",
+      "problemType": "SHORT",
+      "reviewGate": null,
+      "createdAt": "2025-01-16T09:20:00",
+      "lastReviewedAt": null,
+      "reviewCount": 0,
+      "isMyProblem": false,
+      "creatorName": "박영희"
+    },
+    {
+      "problemId": 12,
+      "question": "다음 중 정렬 알고리즘이 아닌 것은?",
+      "problemType": "MCQ",
+      "reviewGate": "GRADUATED",
+      "createdAt": "2025-01-15T11:00:00",
+      "lastReviewedAt": "2025-01-17T16:00:00",
+      "reviewCount": 3,
+      "isMyProblem": false,
+      "creatorName": "이민호"
+    }
+  ],
+  "totalCount": 3
+}
+```
+
+##### Response Example (복습 루프에 없는 문제만 조회)
+
+```json
+{
+  "studyRoomId": 2,
+  "studyRoomName": "알고리즘 스터디",
+  "problems": [
+    {
+      "problemId": 11,
+      "question": "다익스트라 알고리즘의 시간 복잡도는?",
+      "problemType": "SHORT",
+      "reviewGate": null,
+      "createdAt": "2025-01-16T09:20:00",
+      "lastReviewedAt": null,
+      "reviewCount": 0,
+      "isMyProblem": false,
+      "creatorName": "박영희"
+    }
+  ],
+  "totalCount": 1
+}
+```
+
+##### Response Example (빈 목록)
+
+```json
+{
+  "studyRoomId": 2,
+  "studyRoomName": "알고리즘 스터디",
+  "problems": [],
+  "totalCount": 0
+}
+```
+
+### 7.4. Error Responses
+
+#### 7.4.1. 401 Unauthorized - 인증 실패
+
+**JWT 토큰 없음**
+```json
+{
+  "title": "인증되지 않은 요청",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/study-rooms/group/2/problems"
+}
+```
+
+**JWT 토큰 유효하지 않음**
+```json
+{
+  "title": "유효하지 않은 토큰",
+  "status": 401,
+  "detail": "토큰이 유효하지 않습니다.",
+  "instance": "/api/study-rooms/group/2/problems"
+}
+```
+
+#### 7.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
+
+```json
+{
+  "title": "스터디룸을 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+  "instance": "/api/study-rooms/group/999/problems"
+}
+```
+
+#### 7.4.3. 400 Bad Request - 그룹 스터디가 아님
+
+```json
+{
+  "title": "그룹 스터디가 아님",
+  "status": 400,
+  "detail": "참여 코드가 유효하지 않습니다. 개인 공부방에는 참여할 수 없습니다.",
+  "instance": "/api/study-rooms/group/1/problems"
+}
+```
+
+#### 7.4.4. 400 Bad Request - 잘못된 필터
+
+```json
+{
+  "title": "잘못된 필터",
+  "status": 400,
+  "detail": "유효하지 않은 필터 값입니다. ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED 중 하나를 사용하세요.",
+  "instance": "/api/study-rooms/group/2/problems"
+}
+```
+
+#### 7.4.5. 403 Forbidden - 그룹 멤버가 아님
+
+```json
+{
+  "title": "그룹 멤버가 아님",
+  "status": 403,
+  "detail": "해당 그룹 스터디의 멤버만 접근할 수 있습니다.",
+  "instance": "/api/study-rooms/group/2/problems"
+}
+```
+
+### 7.5. 비즈니스 로직
+
+1. **인증 검증**
+   - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
+   - 유효하지 않은 토큰인 경우 401 에러 반환
+
+2. **사용자 및 스터디룸 검증**
+   - 사용자 존재 여부 확인
+   - 스터디룸 존재 여부 확인
+   - 스터디룸이 존재하지 않으면 404 에러 반환
+
+3. **그룹 스터디 및 멤버십 검증**
+   - 스터디룸이 그룹 스터디(`RoomType.GROUP`)인지 확인
+   - 그룹 스터디가 아니면 400 에러 반환
+   - 현재 사용자가 그룹의 활성 멤버인지 확인
+   - 활성 멤버가 아니면 403 에러 반환
+
+4. **필터 변환 및 문제 조회**
+   - `filter` 파라미터를 Boolean 플래그와 `ReviewGate` Enum으로 변환
+   - `"ALL"`: 모든 문제 조회 (`includeAll=true`)
+   - `"NOT_IN_REVIEW"`: ReviewState가 없는 문제만 조회 (`includeNotInReview=true`)
+   - `"GATE_1"`, `"GATE_2"`, `"GRADUATED"`: 특정 관문의 문제만 조회 (`targetGate` 지정)
+   - JPQL LEFT JOIN으로 ReviewState 정보와 creator 정보 함께 조회
+
+5. **최근 시도 기록 조회**
+   - 각 문제의 최근 풀이 시도(`ProblemAttempt`) 조회
+   - `lastReviewedAt` 필드에 사용
+
+6. **결과 변환 및 반환**
+   - 조회된 문제 목록을 Response DTO로 변환
+   - `isMyProblem`: 문제 생성자 ID와 현재 사용자 ID 비교
+   - `creatorName`: 문제 생성자의 username
+   - 200 OK 상태 코드와 함께 반환
+
+### 7.6. 주의사항
+
+- **그룹 스터디 전용**: 이 API는 그룹 스터디(`RoomType.GROUP`)만 지원합니다. 개인 공부방의 문제 목록은 별도 API를 사용해야 합니다.
+- **그룹 멤버만 조회 가능**: 활성 그룹 멤버만 문제 목록을 조회할 수 있습니다.
+- **ReviewState 선택적**: 그룹방 타인 문제는 ReviewState가 없을 수 있습니다. 이 경우 `reviewGate`, `reviewCount`는 0으로, `lastReviewedAt`은 null로 반환됩니다.
+- **필터 기본값**: `filter` 파라미터를 생략하면 `"ALL"`이 기본값으로 적용됩니다.
+- **isMyProblem 활용**: 클라이언트는 이 필드를 사용하여 본인이 만든 문제와 타인이 만든 문제를 구분할 수 있습니다.
+- **creatorName 표시**: 각 문제의 생성자 이름이 표시되어 그룹 내 누가 문제를 만들었는지 확인할 수 있습니다.
+
+### 7.7. 개인 공부방 문제 목록 조회와의 차이점
+
+| 항목 | 개인 공부방 API | 그룹 공부방 API |
+|------|----------------|----------------|
+| 엔드포인트 | `/api/study-rooms/personal/{id}/problems` | `/api/study-rooms/group/{id}/problems` |
+| 권한 검증 | 소유자만 조회 가능 | 그룹 멤버만 조회 가능 |
+| 필터 옵션 | ALL, GATE_1, GATE_2, GRADUATED | ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED |
+| 응답 필드 | reviewGate, reviewCount, lastReviewedAt | + isMyProblem, creatorName |
+| ReviewState | 항상 존재 | 존재하지 않을 수 있음 (타인 문제) |
+| 특징 | 모든 문제가 복습 루프 포함 | 타인 문제는 선택적 복습 루프 포함 |
+
+---
+
+## 8. 오늘의 복습 문제 조회 API
 
 ### 7.1. 기본 정보
 

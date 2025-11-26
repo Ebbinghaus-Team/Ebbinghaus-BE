@@ -13,6 +13,8 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult.PersonalRoomInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
@@ -227,6 +229,45 @@ public class StudyRoomService {
     }
 
     /**
+     * 그룹 공부방의 문제 목록을 조회합니다.
+     * 필터링 옵션(ALL/NOT_IN_REVIEW/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     *
+     * @param command 문제 목록 조회 요청 Command
+     * @return 문제 목록 결과 (isMyProblem, creatorName 포함)
+     */
+    @Transactional(readOnly = true)
+    public GroupRoomProblemListResult getGroupRoomProblems(
+            GroupRoomProblemListCommand command
+    ) {
+        // 1. 사용자 검증
+        User user = findUserById(command.userId());
+
+        // 2. 스터디룸 검증 및 조회
+        StudyRoom studyRoom = findStudyRoomById(command.studyRoomId());
+
+        // 3. 그룹 멤버십 검증
+        validateGroupRoomMembership(studyRoom, user);
+
+        // 4. 필터 파라미터 변환 (filter 문자열 → Boolean 플래그)
+        FilterParams filterParams = convertFilterToParams(command.filter());
+
+        // 5. 문제 목록 조회 (creator, reviewStates fetch join)
+        List<Problem> problems = problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
+                command.studyRoomId(),
+                user.getUserId(),
+                filterParams.includeAll(),
+                filterParams.includeNotInReview(),
+                filterParams.targetGate()
+        );
+
+        // 6. 최근 시도 기록 조회
+        Map<Long, ProblemAttempt> attemptMap = findLatestAttempts(problems, user.getUserId());
+
+        // 7. DTO 변환 및 반환
+        return GroupRoomProblemListResult.of(studyRoom, problems, attemptMap, user.getUserId());
+    }
+
+    /**
      * 스터디룸 ID로 StudyRoom 엔티티를 조회합니다.
      */
     private StudyRoom findStudyRoomById(Long studyRoomId) {
@@ -298,4 +339,46 @@ public class StudyRoomService {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ApplicationException(UserException.USER_NOT_FOUND));
     }
+
+    /**
+     * 그룹방 멤버십을 검증합니다.
+     * 그룹방 타입 확인 및 활성 멤버 여부를 확인합니다.
+     */
+    private void validateGroupRoomMembership(StudyRoom studyRoom, User user) {
+        // 그룹방인지 확인
+        if (studyRoom.getRoomType() != RoomType.GROUP) {
+            throw new ApplicationException(StudyRoomException.NOT_GROUP_ROOM);
+        }
+
+        // 활성 멤버인지 확인
+        if (!studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(user, studyRoom, true)) {
+            throw new ApplicationException(StudyRoomException.NOT_GROUP_MEMBER);
+        }
+    }
+
+    /**
+     * 필터 문자열을 Boolean 플래그로 변환합니다.
+     *
+     * @param filter 필터 문자열 (ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED)
+     * @return FilterParams (includeAll, includeNotInReview, targetGate)
+     */
+    private FilterParams convertFilterToParams(String filter) {
+        return switch (filter) {
+            case "ALL" -> new FilterParams(true, false, null);
+            case "NOT_IN_REVIEW" -> new FilterParams(false, true, null);
+            case "GATE_1" -> new FilterParams(false, false, ReviewGate.GATE_1);
+            case "GATE_2" -> new FilterParams(false, false, ReviewGate.GATE_2);
+            case "GRADUATED" -> new FilterParams(false, false, ReviewGate.GRADUATED);
+            default -> throw new ApplicationException(StudyRoomException.INVALID_FILTER);
+        };
+    }
+
+    /**
+     * 필터 파라미터를 담는 내부 record
+     */
+    private record FilterParams(
+        boolean includeAll,
+        boolean includeNotInReview,
+        ReviewGate targetGate
+    ) {}
 }

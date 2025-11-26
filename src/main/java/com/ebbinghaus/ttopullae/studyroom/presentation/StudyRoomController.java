@@ -3,6 +3,8 @@ package com.ebbinghaus.ttopullae.studyroom.presentation;
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomProblemListResult;
@@ -13,6 +15,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRespon
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomProblemListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
@@ -140,6 +143,31 @@ public class StudyRoomController implements StudyRoomControllerDocs {
         );
         PersonalRoomProblemListResult result = studyRoomService.getPersonalRoomProblems(command);
         PersonalRoomProblemListResponse response = PersonalRoomProblemListResponse.from(result);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 그룹 공부방의 문제 목록을 조회합니다.
+     * 필터링 옵션(ALL/NOT_IN_REVIEW/GATE_1/GATE_2/GRADUATED)을 지원합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @param studyRoomId 스터디룸 ID
+     * @param filter 필터 타입 (기본값: ALL)
+     * @return 그룹 공부방 문제 목록 (isMyProblem, creatorName 포함)
+     */
+    @GetMapping("/group/{studyRoomId}/problems")
+    public ResponseEntity<GroupRoomProblemListResponse> getGroupRoomProblems(
+            @LoginUser Long userId,
+            @PathVariable Long studyRoomId,
+            @RequestParam(defaultValue = "ALL") String filter
+    ) {
+        GroupRoomProblemListCommand command = new GroupRoomProblemListCommand(
+                userId,
+                studyRoomId,
+                filter
+        );
+        GroupRoomProblemListResult result = studyRoomService.getGroupRoomProblems(command);
+        GroupRoomProblemListResponse response = GroupRoomProblemListResponse.from(result);
         return ResponseEntity.ok(response);
     }
 }

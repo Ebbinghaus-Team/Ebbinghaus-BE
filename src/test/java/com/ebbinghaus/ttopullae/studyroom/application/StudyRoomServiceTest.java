@@ -1170,4 +1170,371 @@ class StudyRoomServiceTest {
         verify(studyRoomRepository, times(1)).findById(studyRoomId);
         verify(problemRepository, never()).findPersonalRoomProblemsWithReviewState(anyLong(), anyLong(), any());
     }
+
+    // ===== 그룹 공부방 문제 목록 조회 API 테스트 =====
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 성공 - ALL 필터")
+    void getGroupRoomProblems_Success_AllFilter() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        User creatorUser = User.builder()
+                .userId(2L)
+                .email("creator@example.com")
+                .username("생성자유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        Problem problem1 = Problem.builder()
+                .problemId(1L)
+                .studyRoom(groupRoom)
+                .creator(mockUser)
+                .question("문제1")
+                .problemType(ProblemType.SHORT)
+                .build();
+
+        Problem problem2 = Problem.builder()
+                .problemId(2L)
+                .studyRoom(groupRoom)
+                .creator(creatorUser)
+                .question("문제2")
+                .problemType(ProblemType.SUBJECTIVE)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(true);
+        given(problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(true), eq(false), eq(null)
+        )).willReturn(Arrays.asList(problem1, problem2));
+        given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(eq(userId), anyList()))
+                .willReturn(Collections.emptyList());
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult result =
+                studyRoomService.getGroupRoomProblems(command);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.studyRoomId()).isEqualTo(groupRoomId);
+        assertThat(result.studyRoomName()).isEqualTo("알고리즘 스터디");
+        assertThat(result.problems()).hasSize(2);
+        assertThat(result.totalCount()).isEqualTo(2);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
+        verify(problemRepository, times(1)).findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(true), eq(false), eq(null)
+        );
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 성공 - NOT_IN_REVIEW 필터")
+    void getGroupRoomProblems_Success_NotInReviewFilter() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+        String filter = "NOT_IN_REVIEW";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(true);
+        given(problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(false), eq(true), eq(null)
+        )).willReturn(Collections.emptyList());
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult result =
+                studyRoomService.getGroupRoomProblems(command);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.problems()).isEmpty();
+
+        verify(problemRepository, times(1)).findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(false), eq(true), eq(null)
+        );
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 성공 - GATE_1 필터")
+    void getGroupRoomProblems_Success_Gate1Filter() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+        String filter = "GATE_1";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(true);
+        given(problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(false), eq(false), eq(ReviewGate.GATE_1)
+        )).willReturn(Collections.emptyList());
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult result =
+                studyRoomService.getGroupRoomProblems(command);
+
+        // then
+        assertThat(result).isNotNull();
+
+        verify(problemRepository, times(1)).findGroupRoomProblemsWithReviewStateAndCreator(
+                eq(groupRoomId), eq(userId), eq(false), eq(false), eq(ReviewGate.GATE_1)
+        );
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 사용자를 찾을 수 없음")
+    void getGroupRoomProblems_Fail_UserNotFound() {
+        // given
+        Long userId = 999L;
+        Long groupRoomId = 2L;
+        String filter = "ALL";
+
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomProblems(command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 스터디룸을 찾을 수 없음")
+    void getGroupRoomProblems_Fail_StudyRoomNotFound() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 999L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.empty());
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomProblems(command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.STUDY_ROOM_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 개인 공부방으로 요청")
+    void getGroupRoomProblems_Fail_NotGroupRoom() {
+        // given
+        Long userId = 1L;
+        Long personalRoomId = 1L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(personalRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(personalRoomId)).willReturn(Optional.of(personalRoom));
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, personalRoomId, filter);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomProblems(command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_GROUP_ROOM);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(personalRoomId);
+        verify(studyRoomMemberRepository, never()).existsByUserAndStudyRoomAndActive(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 그룹 멤버가 아님")
+    void getGroupRoomProblems_Fail_NotGroupMember() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+        String filter = "ALL";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        User ownerUser = User.builder()
+                .userId(2L)
+                .email("owner@example.com")
+                .username("방장유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(ownerUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(false);
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, filter);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomProblems(command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_GROUP_MEMBER);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
+        verify(problemRepository, never()).findGroupRoomProblemsWithReviewStateAndCreator(anyLong(), anyLong(), anyBoolean(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 잘못된 필터")
+    void getGroupRoomProblems_Fail_InvalidFilter() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+        String invalidFilter = "INVALID_FILTER";
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(true);
+
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand command =
+                new com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand(userId, groupRoomId, invalidFilter);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomProblems(command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.INVALID_FILTER);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
+        verify(problemRepository, never()).findGroupRoomProblemsWithReviewStateAndCreator(anyLong(), anyLong(), anyBoolean(), anyBoolean(), any());
+    }
 }

@@ -11,6 +11,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateReq
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomProblemListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomProblemListResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -484,5 +485,132 @@ public interface StudyRoomControllerDocs {
             @Parameter(hidden = true) @LoginUser Long userId,
             @Parameter(description = "스터디룸 ID", required = true) @PathVariable Long studyRoomId,
             @Parameter(description = "필터 타입 (ALL, GATE_1, GATE_2, GRADUATED)", example = "ALL") @RequestParam(defaultValue = "ALL") String filter
+    );
+
+    @Operation(
+            summary = "그룹 공부방 문제 목록 조회",
+            description = "그룹 공부방의 문제 목록을 조회합니다. 필터(ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED)를 사용하여 복습 상태별로 문제를 조회할 수 있습니다. 그룹 멤버만 접근할 수 있습니다. 응답에는 isMyProblem(내가 생성한 문제 여부)과 creatorName(생성자 이름)이 포함됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "그룹 공부방 문제 목록 조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = GroupRoomProblemListResponse.class),
+                            examples = @ExampleObject(
+                                    name = "그룹 공부방 문제 목록 조회 성공 예시",
+                                    value = """
+                                            {
+                                              "studyRoomId": 2,
+                                              "studyRoomName": "알고리즘 스터디",
+                                              "problems": [
+                                                {
+                                                  "problemId": 10,
+                                                  "question": "이진 탐색 트리를 설명하시오",
+                                                  "problemType": "ESSAY",
+                                                  "reviewGate": "GATE_1",
+                                                  "createdAt": "2025-01-17T10:00:00",
+                                                  "lastReviewedAt": "2025-01-18T14:30:00",
+                                                  "reviewCount": 1,
+                                                  "isMyProblem": true,
+                                                  "creatorName": "김철수"
+                                                },
+                                                {
+                                                  "problemId": 11,
+                                                  "question": "다익스트라 알고리즘의 시간 복잡도는?",
+                                                  "problemType": "SHORT_ANSWER",
+                                                  "reviewGate": null,
+                                                  "createdAt": "2025-01-16T09:20:00",
+                                                  "lastReviewedAt": null,
+                                                  "reviewCount": 0,
+                                                  "isMyProblem": false,
+                                                  "creatorName": "박영희"
+                                                },
+                                                {
+                                                  "problemId": 12,
+                                                  "question": "다음 중 정렬 알고리즘이 아닌 것은?",
+                                                  "problemType": "MULTIPLE_CHOICE",
+                                                  "reviewGate": "GRADUATED",
+                                                  "createdAt": "2025-01-15T11:00:00",
+                                                  "lastReviewedAt": "2025-01-17T16:00:00",
+                                                  "reviewCount": 3,
+                                                  "isMyProblem": false,
+                                                  "creatorName": "이민호"
+                                                }
+                                              ],
+                                              "totalCount": 3
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "개인 공부방 ID로 요청한 경우",
+                                            value = """
+                                                    {
+                                                      "title": "그룹 스터디가 아님",
+                                                      "status": 400,
+                                                      "detail": "참여 코드가 유효하지 않습니다. 개인 공부방에는 참여할 수 없습니다.",
+                                                      "instance": "/api/study-rooms/group/1/problems"
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "잘못된 필터 값으로 요청한 경우",
+                                            value = """
+                                                    {
+                                                      "title": "잘못된 필터",
+                                                      "status": 400,
+                                                      "detail": "유효하지 않은 필터 값입니다. ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED 중 하나를 사용하세요.",
+                                                      "instance": "/api/study-rooms/group/2/problems"
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
+
+            @ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "그룹 멤버가 아닌 경우",
+                                    value = """
+                                            {
+                                              "title": "그룹 멤버가 아님",
+                                              "status": 403,
+                                              "detail": "해당 그룹 스터디의 멤버만 접근할 수 있습니다.",
+                                              "instance": "/api/study-rooms/group/2/problems"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "404", description = "스터디룸을 찾을 수 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "존재하지 않는 스터디룸 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "스터디룸을 찾을 수 없음",
+                                              "status": 404,
+                                              "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+                                              "instance": "/api/study-rooms/group/999/problems"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/group/{studyRoomId}/problems")
+    ResponseEntity<GroupRoomProblemListResponse> getGroupRoomProblems(
+            @Parameter(hidden = true) @LoginUser Long userId,
+            @Parameter(description = "스터디룸 ID", required = true) @PathVariable Long studyRoomId,
+            @Parameter(description = "필터 타입 (ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED)", example = "ALL") @RequestParam(defaultValue = "ALL") String filter
     );
 }
