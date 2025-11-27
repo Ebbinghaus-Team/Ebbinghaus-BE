@@ -507,8 +507,16 @@ public interface StudyRoomControllerDocs {
                                     name = "그룹 공부방 문제 목록 조회 성공 예시",
                                     value = """
                                             {
-                                              "studyRoomId": 2,
-                                              "studyRoomName": "알고리즘 스터디",
+                                              "studyRoomId": 1,
+                                                "studyRoomName": "자바 스터디",
+                                                "studyRoomCategory": "프로그래밍",
+                                                "studyRoomDescription": "자바 CS 면접준 스터디",
+                                                "joinCode": "KFGCYUB2",
+                                                "dashboard": {
+                                                  "totalCount": 3,
+                                                  "reviewingCount": 2,
+                                                  "unreviewedCount": 1
+                                                },
                                               "problems": [
                                                 {
                                                   "problemId": 10,

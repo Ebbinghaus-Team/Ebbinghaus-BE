@@ -7,24 +7,29 @@ import com.ebbinghaus.ttopullae.problem.domain.ProblemType;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
 import com.ebbinghaus.ttopullae.problem.domain.repository.dto.ProblemWithMyReviewDto;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 public record GroupRoomProblemListResult(
-    Long studyRoomId,
-    String studyRoomName,
-    List<ProblemInfo> problems,
-    int totalCount
+        Long studyRoomId,
+        String studyRoomName,
+        String category,
+        String description,
+        String joinCode,
+        DashboardInfo dashboard,
+        List<ProblemInfo> problems,
+        int totalCount
 ) {
 
     /**
      * ProblemWithMyReviewDto 목록을 GroupRoomProblemListResult로 변환합니다.
      *
-     * @param studyRoom 스터디룸
+     * @param studyRoom   스터디룸
      * @param problemDtos 문제+내 복습 상태 DTO 목록
-     * @param attemptMap 최근 시도 기록 맵 (problemId -> ProblemAttempt)
-     * @param userId 현재 사용자 ID
+     * @param attemptMap  최근 시도 기록 맵 (problemId -> ProblemAttempt)
+     * @param userId      현재 사용자 ID
      */
     public static GroupRoomProblemListResult of(
             StudyRoom studyRoom,
@@ -36,9 +41,15 @@ public record GroupRoomProblemListResult(
                 .map(dto -> ProblemInfo.from(dto, attemptMap, userId))
                 .toList();
 
+        DashboardInfo dashboard = DashboardInfo.from(problemInfos);
+
         return new GroupRoomProblemListResult(
                 studyRoom.getStudyRoomId(),
                 studyRoom.getName(),
+                studyRoom.getCategory(),
+                studyRoom.getDescription(),
+                studyRoom.getJoinCode(),
+                dashboard,
                 problemInfos,
                 problemInfos.size()
         );
@@ -49,22 +60,22 @@ public record GroupRoomProblemListResult(
      * 개인 공부방과의 차이점: isMyProblem, creatorName 필드 추가
      */
     public record ProblemInfo(
-        Long problemId,
-        String question,
-        ProblemType problemType,
-        ReviewGate reviewGate,         // ReviewState 없으면 NOT_IN_REVIEW
-        LocalDateTime createdAt,
-        LocalDateTime lastReviewedAt,  // 시도 기록 없으면 null
-        int reviewCount,               // ReviewState 없으면 0
-        boolean isMyProblem,           // 내가 생성한 문제인지 여부
-        String creatorName             // 문제 생성자 이름
+            Long problemId,
+            String question,
+            ProblemType problemType,
+            ReviewGate reviewGate,         // ReviewState 없으면 NOT_IN_REVIEW
+            LocalDateTime createdAt,
+            LocalDateTime lastReviewedAt,  // 시도 기록 없으면 null
+            int reviewCount,               // ReviewState 없으면 0
+            boolean isMyProblem,           // 내가 생성한 문제인지 여부
+            String creatorName             // 문제 생성자 이름
     ) {
         /**
          * ProblemWithMyReviewDto를 ProblemInfo DTO로 변환합니다.
          *
-         * @param dto 문제와 내 복습 상태 DTO
+         * @param dto        문제와 내 복습 상태 DTO
          * @param attemptMap 최근 시도 기록 맵
-         * @param userId 현재 사용자 ID
+         * @param userId     현재 사용자 ID
          * @return ProblemInfo (ReviewState 없어도 항상 반환)
          */
         public static ProblemInfo from(
@@ -91,6 +102,33 @@ public record GroupRoomProblemListResult(
                     myReviewState != null ? myReviewState.getReviewCount() : 0,
                     isMyProblem,
                     problem.getCreator().getUsername()
+            );
+        }
+
+        public boolean isIncludedInReview() {
+            return this.reviewGate != ReviewGate.NOT_IN_REVIEW;
+        }
+    }
+
+    public record DashboardInfo(
+            int totalCount,
+            int reviewingCount,
+            int unreviewedCount
+    ) {
+        public static DashboardInfo from(List<ProblemInfo> problems) {
+            int totalCount = problems.size();
+
+            // 복습 주기에 포함된 문제 개수 계산 (NOT_IN_REVIEW가 아닌 것들)
+            int reviewingCount = (int) problems.stream()
+                    .filter(ProblemInfo::isIncludedInReview)
+                    .count();
+
+            int unreviewedCount = totalCount - reviewingCount;
+
+            return new DashboardInfo(
+                    totalCount,
+                    reviewingCount,
+                    unreviewedCount
             );
         }
     }

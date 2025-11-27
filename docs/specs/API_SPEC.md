@@ -1293,12 +1293,31 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ##### Response Body
 
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| studyRoomId | Long | 스터디룸 ID | 2 |
-| studyRoomName | String | 스터디룸 이름 | "알고리즘 스터디" |
-| problems | List\<ProblemSummary\> | 문제 목록 | [...] |
-| totalCount | Integer | 전체 문제 수 | 5 |
+| 필드                   | 타입 | 설명         | 예시                                 |
+|----------------------|------|------------|------------------------------------|
+| studyRoomId          | Long | 스터디룸 ID    | 2                                  |
+| studyRoomName        | String | 스터디룸 이름    | "알고리즘 스터디"                         |
+| studyRoomCategory    | String | 스터디룸 카테고리  | "프로그래밍"                            |
+| studyRoomDescription | String | 스터디룸 설명    | "알고리즘 잔디심기 스터디"                    |
+| joinCode             | String | 스터디룸 참여 코드 | "ASD241"                           |
+| dashboard             | String | 스터디룸 문제 현황 | 총 문제, 복습 주기에 포함된 문제, 포함되지 않은 문제 개수 |
+| problems             | List\<ProblemSummary\> | 문제 목록      | [...]                              |
+| totalCount           | Integer | 전체 문제 수    | 5                                  |
+
+
+
+##### dashboard 필드
+
+| 필드 | 타입 | 설명                               | 예시 |
+|------|------|----------------------------------|----|
+| totalCount | Integer | 총 문제 개수                          | 10 |
+| reviewingCount | Integer | 복습 하고 있는 문제 수 (복습 주기에 포함된 문제 수)  | 9  |
+| unreviewedCount | Integer | 복습 하지 않는 문제 수 (복습 주기에 포함 X 문제 수) | 1  |
+
+- 그룹 스터디 룸의 문제 현황을 응답합니다. 
+- reviewingCount: 복습 루프에 포함된 문제의 개수입니다. (ProblemReviewState 가 존재)
+- unreviewedCount: 현재 복습 루프에 포함되지 않은 문제의 개수 입니다. (다른 사람이 등록한 문제, 다른 사람이 등록한 문제를 풀었지만 복습 루프 포함 설정을 하지 않은 문제)
+
 
 ##### ProblemSummary 필드
 
@@ -1320,6 +1339,14 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
   "studyRoomId": 2,
   "studyRoomName": "알고리즘 스터디",
+   "studyRoomCategory": "프로그래밍",
+   "studyRoomDescription": "알고리즘 잔디심기",
+   "joinCode": "KFGCYUB2",
+   "dashboard": {
+      "totalCount": 6,
+      "reviewingCount": 3,
+      "unreviewedCount": 3
+   },
   "problems": [
     {
       "problemId": 10,
