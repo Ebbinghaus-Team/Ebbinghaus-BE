@@ -1294,7 +1294,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | problemId | Long | 문제 ID | 10 |
 | question | String | 문제 내용 | "이진 탐색 트리를 설명하시오" |
 | problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "SUBJECTIVE" |
-| reviewGate | String | 현재 복습 관문 (null 가능) | "GATE_1" |
+| reviewGate | String | 현재 복습 관문 (NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED) | "GATE_1" |
 | createdAt | String (ISO 8601) | 문제 생성 일시 | "2025-01-17T10:00:00" |
 | lastReviewedAt | String (ISO 8601) | 마지막 복습 일시 (null 가능) | "2025-01-18T14:30:00" |
 | reviewCount | Integer | 복습 횟수 | 1 |
@@ -1323,7 +1323,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "problemId": 11,
       "question": "다익스트라 알고리즘의 시간 복잡도는?",
       "problemType": "SHORT",
-      "reviewGate": null,
+      "reviewGate": "NOT_IN_REVIEW",
       "createdAt": "2025-01-16T09:20:00",
       "lastReviewedAt": null,
       "reviewCount": 0,
@@ -1357,7 +1357,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       "problemId": 11,
       "question": "다익스트라 알고리즘의 시간 복잡도는?",
       "problemType": "SHORT",
-      "reviewGate": null,
+      "reviewGate": "NOT_IN_REVIEW",
       "createdAt": "2025-01-16T09:20:00",
       "lastReviewedAt": null,
       "reviewCount": 0,
