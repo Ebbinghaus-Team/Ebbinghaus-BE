@@ -5,6 +5,7 @@ import com.ebbinghaus.ttopullae.global.auth.LoginUserArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -21,6 +22,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final JwtAuthenticationInterceptor jwtAuthenticationInterceptor;
     private final LoginUserArgumentResolver loginUserArgumentResolver;
+
+    private static final String[] ALLOWED_ORIGINS = {
+            "https://ebbinghaus.chxghee.com", // 메인 API 서버
+            "http://localhost:5173",
+            "http://localhost:4173"
+    };
+
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -39,5 +47,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(loginUserArgumentResolver);
+    }
+
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOrigins(ALLOWED_ORIGINS)
+                .allowedMethods("*")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3000);
     }
 }
