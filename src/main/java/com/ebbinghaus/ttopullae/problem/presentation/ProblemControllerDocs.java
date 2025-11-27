@@ -4,6 +4,7 @@ import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.global.exception.ErrorResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemDetailResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -98,7 +100,7 @@ public interface ProblemControllerDocs {
                                                       "title": "유효하지 않은 입력값",
                                                       "status": 400,
                                                       "detail": "question: 문제 내용은 필수입니다",
-                                                      "instance": "/api/study-rooms/1/problems"
+                                                      "instance": "/api/study-rooms/1"
                                                     }
                                                     """
                                     ),
@@ -109,7 +111,7 @@ public interface ProblemControllerDocs {
                                                       "title": "객관식 데이터 오류",
                                                       "status": 400,
                                                       "detail": "객관식 문제는 선택지 목록과 정답 인덱스가 필요합니다.",
-                                                      "instance": "/api/study-rooms/1/problems"
+                                                      "instance": "/api/study-rooms/1"
                                                     }
                                                     """
                                     ),
@@ -120,7 +122,7 @@ public interface ProblemControllerDocs {
                                                       "title": "OX 데이터 오류",
                                                       "status": 400,
                                                       "detail": "OX 문제는 정답(true/false)이 필요합니다.",
-                                                      "instance": "/api/study-rooms/1/problems"
+                                                      "instance": "/api/study-rooms/1"
                                                     }
                                                     """
                                     ),
@@ -131,7 +133,7 @@ public interface ProblemControllerDocs {
                                                       "title": "단답형 데이터 오류",
                                                       "status": 400,
                                                       "detail": "단답형 문제는 정답 텍스트가 필요합니다.",
-                                                      "instance": "/api/study-rooms/1/problems"
+                                                      "instance": "/api/study-rooms/1"
                                                     }
                                                     """
                                     ),
@@ -142,7 +144,7 @@ public interface ProblemControllerDocs {
                                                       "title": "서술형 데이터 오류",
                                                       "status": 400,
                                                       "detail": "서술형 문제는 모범 답안과 키워드 목록이 필요합니다.",
-                                                      "instance": "/api/study-rooms/1/problems"
+                                                      "instance": "/api/study-rooms/1"
                                                     }
                                                     """
                                     )
@@ -177,7 +179,7 @@ public interface ProblemControllerDocs {
                                               "title": "스터디룸을 찾을 수 없음",
                                               "status": 404,
                                               "detail": "요청한 ID의 스터디룸이 존재하지 않습니다.",
-                                              "instance": "/api/study-rooms/999/problems"
+                                              "instance": "/api/study-rooms/999"
                                             }
                                             """
                             )
@@ -188,7 +190,164 @@ public interface ProblemControllerDocs {
     ResponseEntity<ProblemCreateResponse> createProblem(
             @Parameter(hidden = true) @LoginUser Long userId,
             @PathVariable Long studyRoomId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "문제 생성 요청 데이터 (유형별로 필요한 필드가 다름)",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemCreateRequest.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "객관식 (MCQ)",
+                                            value = """
+                                                    {
+                                                      "problemType": "MCQ",
+                                                      "question": "자바의 접근 제어자가 아닌 것은?",
+                                                      "explanation": "friend는 C++의 접근 제어자입니다.",
+                                                      "choices": ["public", "private", "protected", "friend"],
+                                                      "correctChoiceIndex": 3
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "OX",
+                                            value = """
+                                                    {
+                                                      "problemType": "OX",
+                                                      "question": "JVM은 Java Virtual Machine의 약자이다.",
+                                                      "explanation": "맞습니다.",
+                                                      "answerBoolean": true
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "단답형 (SHORT)",
+                                            value = """
+                                                    {
+                                                      "problemType": "SHORT",
+                                                      "question": "자바에서 문자열을 다루는 불변 클래스는?",
+                                                      "explanation": "String 클래스입니다.",
+                                                      "answerText": "String"
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "서술형 (SUBJECTIVE)",
+                                            value = """
+                                                    {
+                                                      "problemType": "SUBJECTIVE",
+                                                      "question": "DDD의 핵심 개념에 대해 설명하시오.",
+                                                      "explanation": "DDD는 도메인 중심 설계입니다.",
+                                                      "modelAnswerText": "DDD는 도메인을 중심으로 소프트웨어를 설계하는 방법론입니다.",
+                                                      "keywords": ["도메인", "엔티티", "리포지토리"]
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            )
             @Valid @RequestBody ProblemCreateRequest request
+    );
+
+    @Operation(
+            summary = "문제 상세 조회",
+            description = "문제를 풀기 전에 문제의 상세 정보를 조회합니다. 정답 정보는 노출되지 않습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "문제 조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetailResponse.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "객관식 문제 조회",
+                                            value = """
+                                                    {
+                                                      "problemId": 1,
+                                                      "question": "자바의 접근 제어자가 아닌 것은?",
+                                                      "problemType": "MCQ",
+                                                      "studyRoomId": 1,
+                                                      "choices": ["public", "private", "protected", "friend"],
+                                                      "currentGate": "GATE_1",
+                                                      "nextReviewDate": "2025-01-29",
+                                                      "reviewCount": 0,
+                                                      "includeInReview": true
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "단답형 문제 조회 (복습 상태 없음)",
+                                            value = """
+                                                    {
+                                                      "problemId": 5,
+                                                      "question": "자바에서 문자열을 다루는 불변 클래스는?",
+                                                      "problemType": "SHORT",
+                                                      "studyRoomId": 2,
+                                                      "choices": null,
+                                                      "currentGate": null,
+                                                      "nextReviewDate": null,
+                                                      "reviewCount": null,
+                                                      "includeInReview": null
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
+
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "JWT 토큰이 없거나 유효하지 않은 경우",
+                                    value = """
+                                            {
+                                              "title": "토큰을 찾을 수 없음",
+                                              "status": 401,
+                                              "detail": "인증 토큰이 제공되지 않았습니다.",
+                                              "instance": "/api/problems/1"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "403", description = "스터디룸 접근 권한 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "스터디룸 멤버가 아닌 경우",
+                                    value = """
+                                            {
+                                              "title": "스터디룸 접근 권한 없음",
+                                              "status": 403,
+                                              "detail": "해당 스터디룸의 멤버가 아닙니다.",
+                                              "instance": "/api/problems/1"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "404", description = "문제를 찾을 수 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "존재하지 않는 문제 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "문제를 찾을 수 없음",
+                                              "status": 404,
+                                              "detail": "요청한 ID의 문제가 존재하지 않습니다.",
+                                              "instance": "/api/problems/999"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/problems/{problemId}")
+    ResponseEntity<ProblemDetailResponse> getProblemDetail(
+            @Parameter(hidden = true) @LoginUser Long userId,
+            @PathVariable Long problemId
     );
 
     @Operation(
