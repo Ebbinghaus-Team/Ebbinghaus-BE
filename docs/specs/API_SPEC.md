@@ -1060,12 +1060,13 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ##### Response Body
 
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| studyRoomId | Long | 스터디룸 ID | 1 |
-| studyRoomName | String | 스터디룸 이름 | "자바 스터디" |
-| problems | List\<ProblemSummary\> | 문제 목록 | [...] |
-| totalCount | Integer | 전체 문제 수 | 3 |
+| 필드            | 타입 | 설명                | 예시 |
+|---------------|------|-------------------|------|
+| studyRoomId   | Long | 스터디룸 ID           | 1 |
+| studyRoomName | String | 스터디룸 이름           | "자바 스터디" |
+| dashboard     | DashboardDto | 개인 스터디룸의 문제 현황 요약 | [...] |
+| problems      | List\<ProblemSummary\> | 문제 목록             | [...] |
+| totalCount    | Integer | 전체 문제 수           | 3 |
 
 ##### ProblemSummary 필드
 
@@ -1085,6 +1086,12 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
   "studyRoomId": 1,
   "studyRoomName": "자바 스터디",
+   "dashboard": {
+      "totalCount": 3,
+      "completedCount": 1,
+      "incompletedCount": 2,
+      "progressRate": 33.3
+   },
   "problems": [
     {
       "problemId": 1,
@@ -1124,6 +1131,12 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
   "studyRoomId": 1,
   "studyRoomName": "자바 스터디",
+   "dashboard": {
+      "totalCount": 0,
+      "completedCount": 0,
+      "incompletedCount": 0,
+      "progressRate": 0.0
+   },
   "problems": [],
   "totalCount": 0
 }

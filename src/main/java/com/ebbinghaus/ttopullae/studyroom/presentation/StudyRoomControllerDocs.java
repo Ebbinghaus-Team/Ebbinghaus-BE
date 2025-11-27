@@ -395,6 +395,12 @@ public interface StudyRoomControllerDocs {
                                             {
                                               "studyRoomId": 1,
                                               "studyRoomName": "자바 마스터하기",
+                                              "dashboard": {
+                                                  "totalCount": 3,
+                                                  "completedCount": 1,
+                                                  "incompletedCount": 2,
+                                                  "progressRate": 33.3
+                                                },
                                               "problems": [
                                                 {
                                                   "problemId": 1,
