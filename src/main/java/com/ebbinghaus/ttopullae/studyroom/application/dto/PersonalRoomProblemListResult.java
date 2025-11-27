@@ -16,6 +16,8 @@ public record PersonalRoomProblemListResult(
         DashboardInfo dashboard,
         Long studyRoomId,
         String studyRoomName,
+        String studyRoomCategory,
+        String studyRoomDescription,
         List<ProblemInfo> problems,
         int totalCount
 ) {
@@ -45,6 +47,8 @@ public record PersonalRoomProblemListResult(
                 dashboardInfo,
                 studyRoom.getStudyRoomId(),
                 studyRoom.getName(),
+                studyRoom.getCategory(),
+                studyRoom.getDescription(),
                 problemInfos,
                 problemInfos.size()
         );

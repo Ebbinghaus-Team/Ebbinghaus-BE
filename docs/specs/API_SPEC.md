@@ -1060,13 +1060,27 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ##### Response Body
 
-| 필드            | 타입 | 설명                | 예시 |
-|---------------|------|-------------------|------|
-| studyRoomId   | Long | 스터디룸 ID           | 1 |
-| studyRoomName | String | 스터디룸 이름           | "자바 스터디" |
-| dashboard     | DashboardDto | 개인 스터디룸의 문제 현황 요약 | [...] |
-| problems      | List\<ProblemSummary\> | 문제 목록             | [...] |
-| totalCount    | Integer | 전체 문제 수           | 3 |
+| 필드            | 타입 | 설명                | 예시               |
+|---------------|------|-------------------|------------------|
+| studyRoomId   | Long | 스터디룸 ID           | 1                |
+| studyRoomName | String | 스터디룸 이름           | "자바"             |
+| studyRoomName | String | 스터디룸 이름           | "프로그래밍"          |
+| studyRoomName | String | 스터디룸 이름           | "자바를 마스터 해 봅시다." |
+| dashboard     | DashboardDto | 개인 스터디룸의 문제 현황 요약 | [...]            |
+| problems      | List\<ProblemSummary\> | 문제 목록             | [...]            |
+| totalCount    | Integer | 전체 문제 수           | 3                |
+
+
+##### DashboardDto 필드
+
+| 필드 | 타입      | 설명                            | 예시   |
+|------|---------|-------------------------------|------|
+| totalCount | Integer | 총 문제 개수                       | 3    |
+| completedCount | Integer | 졸업한 문제 수                      | 1    |
+| incompletedCount | Integer | 졸업하지 않은 문제 수 (복습중인 문제 수)      | 2    |
+| progressRate | Double  | 진행률 (졸업하지 않은 문제 수 / 총 문제 수) % | 33.3 |
+
+
 
 ##### ProblemSummary 필드
 
@@ -1085,7 +1099,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```json
 {
   "studyRoomId": 1,
-  "studyRoomName": "자바 스터디",
+   "studyRoomName": "자바",
+   "studyRoomCategory": "프로그래밍",
+   "studyRoomDescription": "자바를 마스터해 봅시다",
    "dashboard": {
       "totalCount": 3,
       "completedCount": 1,
@@ -1130,7 +1146,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```json
 {
   "studyRoomId": 1,
-  "studyRoomName": "자바 스터디",
+  "studyRoomName": "자바",
+   "studyRoomCategory": "프로그래밍",
+   "studyRoomDescription": "자바를 마스터해 봅시다",
    "dashboard": {
       "totalCount": 0,
       "completedCount": 0,
@@ -1300,13 +1318,13 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | studyRoomCategory    | String | 스터디룸 카테고리  | "프로그래밍"                            |
 | studyRoomDescription | String | 스터디룸 설명    | "알고리즘 잔디심기 스터디"                    |
 | joinCode             | String | 스터디룸 참여 코드 | "ASD241"                           |
-| dashboard             | String | 스터디룸 문제 현황 | 총 문제, 복습 주기에 포함된 문제, 포함되지 않은 문제 개수 |
+| dashboard             | DashboardDto | 스터디룸 문제 현황 | 총 문제, 복습 주기에 포함된 문제, 포함되지 않은 문제 개수 |
 | problems             | List\<ProblemSummary\> | 문제 목록      | [...]                              |
 | totalCount           | Integer | 전체 문제 수    | 5                                  |
 
 
 
-##### dashboard 필드
+##### DashboardDto 필드
 
 | 필드 | 타입 | 설명                               | 예시 |
 |------|------|----------------------------------|----|

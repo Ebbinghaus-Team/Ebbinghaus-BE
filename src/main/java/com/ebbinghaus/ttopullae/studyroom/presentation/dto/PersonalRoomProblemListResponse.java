@@ -9,6 +9,8 @@ import java.util.List;
 public record PersonalRoomProblemListResponse(
     Long studyRoomId,
     String studyRoomName,
+    String studyRoomCategory,
+    String studyRoomDescription,
     DashboardDto dashboard,
     List<ProblemSummary> problems,
     int totalCount
@@ -38,11 +40,11 @@ public record PersonalRoomProblemListResponse(
                 ))
                 .toList();
 
-
-
         return new PersonalRoomProblemListResponse(
                 result.studyRoomId(),
                 result.studyRoomName(),
+                result.studyRoomCategory(),
+                result.studyRoomDescription(),
                 DashboardDto.from(result),
                 summaries,
                 result.totalCount()

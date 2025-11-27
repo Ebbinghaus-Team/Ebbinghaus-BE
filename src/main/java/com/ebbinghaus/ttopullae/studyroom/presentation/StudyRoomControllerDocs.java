@@ -394,7 +394,9 @@ public interface StudyRoomControllerDocs {
                                     value = """
                                             {
                                               "studyRoomId": 1,
-                                              "studyRoomName": "자바 마스터하기",
+                                              "studyRoomName": "자바",
+                                              "studyRoomCategory": "프로그래밍",
+                                              "studyRoomDescription": "자바를 마스터해 봅시다",
                                               "dashboard": {
                                                   "totalCount": 3,
                                                   "completedCount": 1,
