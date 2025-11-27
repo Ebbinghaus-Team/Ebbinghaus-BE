@@ -95,6 +95,32 @@ public class ProblemService {
         return TodayReviewResult.of(reviewStates, today, todaysAttempts);
     }
 
+    /**
+     * 문제 상세 정보를 조회합니다.
+     * 정답 정보는 노출하지 않습니다.
+     */
+    @Transactional(readOnly = true)
+    public ProblemDetailResult getProblemDetail(Long userId, Long problemId) {
+        User user = findUserById(userId);
+        Problem problem = findProblemById(problemId);
+
+        // 스터디룸 멤버십 검증
+        validateStudyRoomAccess(user, problem);
+
+        // 객관식 선택지 조회 (정답 제외)
+        List<ProblemChoice> choices = null;
+        if (problem.getProblemType() == ProblemType.MCQ) {
+            choices = problemChoiceRepository.findByProblem(problem);
+        }
+
+        // 사용자의 복습 상태 조회 (없으면 null)
+        ProblemReviewState reviewState = problemReviewStateRepository
+                .findByUserAndProblem(user, problem)
+                .orElse(null);
+
+        return ProblemDetailResult.of(problem, choices, reviewState);
+    }
+
     private ReviewGate parseFilterToGate(String filter) {
         return switch (filter) {
             case "GATE_1" -> ReviewGate.GATE_1;

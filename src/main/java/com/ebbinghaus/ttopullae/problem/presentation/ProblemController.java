@@ -3,11 +3,13 @@ package com.ebbinghaus.ttopullae.problem.presentation;
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.problem.application.ProblemService;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemCreateResult;
+import com.ebbinghaus.ttopullae.problem.application.dto.ProblemDetailResult;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitCommand;
 import com.ebbinghaus.ttopullae.problem.application.dto.ProblemSubmitResult;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemCreateResponse;
+import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemDetailResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionRequest;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemReviewInclusionResponse;
 import com.ebbinghaus.ttopullae.problem.presentation.dto.ProblemSubmitRequest;
@@ -36,6 +38,16 @@ public class ProblemController implements ProblemControllerDocs {
         );
         ProblemCreateResponse response = ProblemCreateResponse.from(result);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/problems/{problemId}")
+    public ResponseEntity<ProblemDetailResponse> getProblemDetail(
+            @LoginUser Long userId,
+            @PathVariable Long problemId
+    ) {
+        ProblemDetailResult result = problemService.getProblemDetail(userId, problemId);
+        ProblemDetailResponse response = ProblemDetailResponse.from(result);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{problemId}/submit")
