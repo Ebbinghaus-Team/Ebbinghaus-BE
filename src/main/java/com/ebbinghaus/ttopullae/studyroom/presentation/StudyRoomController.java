@@ -3,6 +3,7 @@ package com.ebbinghaus.ttopullae.studyroom.presentation;
 import com.ebbinghaus.ttopullae.global.auth.LoginUser;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomMemberListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
@@ -15,6 +16,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRespon
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomMemberListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomProblemListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
@@ -168,6 +170,23 @@ public class StudyRoomController implements StudyRoomControllerDocs {
         );
         GroupRoomProblemListResult result = studyRoomService.getGroupRoomProblems(command);
         GroupRoomProblemListResponse response = GroupRoomProblemListResponse.from(result);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 그룹 스터디의 멤버 목록을 조회합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID (JWT에서 추출)
+     * @param studyRoomId 그룹 스터디 ID
+     * @return 멤버 목록 (방장 표시 포함)
+     */
+    @GetMapping("/group/{studyRoomId}/members")
+    public ResponseEntity<GroupRoomMemberListResponse> getGroupRoomMembers(
+            @LoginUser Long userId,
+            @PathVariable Long studyRoomId
+    ) {
+        GroupRoomMemberListResult result = studyRoomService.getGroupRoomMembers(userId, studyRoomId);
+        GroupRoomMemberListResponse response = GroupRoomMemberListResponse.from(result);
         return ResponseEntity.ok(response);
     }
 }

@@ -7,6 +7,7 @@ import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomCreateRespon
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomJoinResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomListResponse;
+import com.ebbinghaus.ttopullae.studyroom.presentation.dto.GroupRoomMemberListResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateRequest;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomCreateResponse;
 import com.ebbinghaus.ttopullae.studyroom.presentation.dto.PersonalRoomListResponse;
@@ -630,5 +631,117 @@ public interface StudyRoomControllerDocs {
             @Parameter(hidden = true) @LoginUser Long userId,
             @Parameter(description = "스터디룸 ID", required = true) @PathVariable Long studyRoomId,
             @Parameter(description = "필터 타입 (ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED)", example = "ALL") @RequestParam(defaultValue = "ALL") String filter
+    );
+
+    @Operation(
+            summary = "그룹 스터디 멤버 목록 조회",
+            description = "그룹 스터디의 멤버 목록을 조회합니다. 그룹 멤버만 접근할 수 있으며, 응답에는 방장 표시(isOwner)가 포함됩니다. 방장이 목록의 맨 앞에 위치합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "그룹 스터디 멤버 목록 조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = GroupRoomMemberListResponse.class),
+                            examples = @ExampleObject(
+                                    name = "그룹 스터디 멤버 목록 조회 성공 예시",
+                                    value = """
+                                            {
+                                              "studyRoomId": 2,
+                                              "studyRoomName": "알고리즘 스터디",
+                                              "totalMembers": 3,
+                                              "members": [
+                                                {
+                                                  "userId": 1,
+                                                  "username": "김철수",
+                                                  "isOwner": true
+                                                },
+                                                {
+                                                  "userId": 2,
+                                                  "username": "이영희",
+                                                  "isOwner": false
+                                                },
+                                                {
+                                                  "userId": 3,
+                                                  "username": "박민수",
+                                                  "isOwner": false
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "개인 공부방 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "그룹 스터디가 아님",
+                                              "status": 400,
+                                              "detail": "참여 코드가 유효하지 않습니다. 개인 공부방에는 참여할 수 없습니다.",
+                                              "instance": "/api/study-rooms/group/1/members"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "그룹 멤버가 아닌 경우",
+                                    value = """
+                                            {
+                                              "title": "그룹 멤버가 아님",
+                                              "status": 403,
+                                              "detail": "해당 그룹 스터디의 멤버만 접근할 수 있습니다.",
+                                              "instance": "/api/study-rooms/group/2/members"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "404", description = "스터디룸을 찾을 수 없음",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "존재하지 않는 스터디룸 ID로 요청한 경우",
+                                    value = """
+                                            {
+                                              "title": "스터디룸을 찾을 수 없음",
+                                              "status": 404,
+                                              "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+                                              "instance": "/api/study-rooms/group/999/members"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "JWT 토큰이 없거나 유효하지 않은 경우",
+                                    value = """
+                                            {
+                                              "title": "토큰을 찾을 수 없음",
+                                              "status": 401,
+                                              "detail": "인증 토큰이 제공되지 않았습니다.",
+                                              "instance": "/api/study-rooms/group/2/members"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/group/{studyRoomId}/members")
+    ResponseEntity<GroupRoomMemberListResponse> getGroupRoomMembers(
+            @Parameter(hidden = true) @LoginUser Long userId,
+            @Parameter(description = "그룹 스터디 ID", required = true) @PathVariable Long studyRoomId
     );
 }

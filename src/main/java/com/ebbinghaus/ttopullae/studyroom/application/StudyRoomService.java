@@ -13,6 +13,8 @@ import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult.GroupRoomInfo;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomMemberListResult;
+import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomMemberListResult.MemberInfo;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomProblemListResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.PersonalRoomListResult;
@@ -228,6 +230,54 @@ public class StudyRoomService {
         Map<Long, ProblemAttempt> attemptMap = findLatestAttempts(problems, user.getUserId());
 
         return PersonalRoomProblemListResult.of(studyRoom, problems, attemptMap, user.getUserId());
+    }
+
+    /**
+     * 그룹 스터디의 멤버 목록을 조회합니다.
+     *
+     * @param userId 현재 로그인한 사용자 ID
+     * @param studyRoomId 그룹 스터디 ID
+     * @return 멤버 목록 결과 (방장 표시 포함)
+     */
+    @Transactional(readOnly = true)
+    public GroupRoomMemberListResult getGroupRoomMembers(Long userId, Long studyRoomId) {
+        // 1. 사용자 검증
+        User user = findUserById(userId);
+
+        // 2. 스터디룸 검증 및 조회
+        StudyRoom studyRoom = findStudyRoomById(studyRoomId);
+
+        // 3. 그룹 멤버십 검증 (그룹 멤버만 멤버 목록 조회 가능)
+        validateGroupRoomMembership(studyRoom, user);
+
+        // 4. 활성 멤버 목록 조회 (N+1 방지를 위해 User fetch join)
+        List<StudyRoomMember> members = studyRoomMemberRepository
+                .findAllByStudyRoomAndActiveWithUser(studyRoom, true);
+
+        // 5. 방장 ID 추출
+        Long ownerId = studyRoom.getOwner().getUserId();
+
+        // 6. MemberInfo DTO 변환 (방장을 맨 앞에 배치)
+        List<MemberInfo> memberInfos = members.stream()
+                .map(member -> {
+                    User memberUser = member.getUser();
+                    boolean isOwner = memberUser.getUserId().equals(ownerId);
+                    return new MemberInfo(
+                            memberUser.getUserId(),
+                            memberUser.getUsername(),
+                            isOwner
+                    );
+                })
+                .sorted((m1, m2) -> Boolean.compare(m2.isOwner(), m1.isOwner())) // 방장을 맨 앞으로
+                .toList();
+
+        // 7. Result DTO 생성 및 반환
+        return new GroupRoomMemberListResult(
+                studyRoom.getStudyRoomId(),
+                studyRoom.getName(),
+                memberInfos.size(),
+                memberInfos
+        );
     }
 
     /**
