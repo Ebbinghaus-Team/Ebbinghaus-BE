@@ -251,8 +251,8 @@ public class StudyRoomService {
         // 4. 필터 파라미터 변환 (filter 문자열 → Boolean 플래그)
         FilterParams filterParams = convertFilterToParams(command.filter());
 
-        // 5. 문제 목록 조회 (creator, reviewStates fetch join)
-        List<Problem> problems = problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
+        // 5. 문제 목록 조회 (DTO 프로젝션: Problem + 내 ReviewState)
+        var problemDtos = problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
                 command.studyRoomId(),
                 user.getUserId(),
                 filterParams.includeAll(),
@@ -260,11 +260,16 @@ public class StudyRoomService {
                 filterParams.targetGate()
         );
 
-        // 6. 최근 시도 기록 조회
+        // 6. DTO에서 Problem 목록 추출
+        List<Problem> problems = problemDtos.stream()
+                .map(dto -> dto.problem())
+                .toList();
+
+        // 7. 최근 시도 기록 조회
         Map<Long, ProblemAttempt> attemptMap = findLatestAttempts(problems, user.getUserId());
 
-        // 7. DTO 변환 및 반환
-        return GroupRoomProblemListResult.of(studyRoom, problems, attemptMap, user.getUserId());
+        // 8. DTO 변환 및 반환 (문제 + 내 복습 상태 함께 전달)
+        return GroupRoomProblemListResult.of(studyRoom, problemDtos, attemptMap, user.getUserId());
     }
 
     /**

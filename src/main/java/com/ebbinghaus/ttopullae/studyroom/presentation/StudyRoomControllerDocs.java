@@ -397,7 +397,7 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 1,
                                                   "question": "자바의 특징을 3가지 설명하시오",
-                                                  "problemType": "ESSAY",
+                                                  "problemType": "SUBJECTIVE",
                                                   "reviewGate": "GATE_1",
                                                   "createdAt": "2025-01-17T10:00:00",
                                                   "lastReviewedAt": "2025-01-18T14:30:00",
@@ -406,7 +406,7 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 2,
                                                   "question": "다음 중 접근 제어자가 아닌 것은?",
-                                                  "problemType": "MULTIPLE_CHOICE",
+                                                  "problemType": "MCQ",
                                                   "reviewGate": "GATE_2",
                                                   "createdAt": "2025-01-15T09:20:00",
                                                   "lastReviewedAt": "2025-01-18T10:15:00",
@@ -415,7 +415,7 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 3,
                                                   "question": "객체지향 프로그래밍의 4대 특징은?",
-                                                  "problemType": "SHORT_ANSWER",
+                                                  "problemType": "SHORT",
                                                   "reviewGate": "GRADUATED",
                                                   "createdAt": "2025-01-10T11:00:00",
                                                   "lastReviewedAt": "2025-01-17T16:00:00",
@@ -505,7 +505,7 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 10,
                                                   "question": "이진 탐색 트리를 설명하시오",
-                                                  "problemType": "ESSAY",
+                                                  "problemType": "SUBJECTIVE",
                                                   "reviewGate": "GATE_1",
                                                   "createdAt": "2025-01-17T10:00:00",
                                                   "lastReviewedAt": "2025-01-18T14:30:00",
@@ -516,8 +516,8 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 11,
                                                   "question": "다익스트라 알고리즘의 시간 복잡도는?",
-                                                  "problemType": "SHORT_ANSWER",
-                                                  "reviewGate": null,
+                                                  "problemType": "SHORT",
+                                                  "reviewGate": "NOT_IN_REVIEW",
                                                   "createdAt": "2025-01-16T09:20:00",
                                                   "lastReviewedAt": null,
                                                   "reviewCount": 0,
@@ -527,7 +527,7 @@ public interface StudyRoomControllerDocs {
                                                 {
                                                   "problemId": 12,
                                                   "question": "다음 중 정렬 알고리즘이 아닌 것은?",
-                                                  "problemType": "MULTIPLE_CHOICE",
+                                                  "problemType": "MCQ",
                                                   "reviewGate": "GRADUATED",
                                                   "createdAt": "2025-01-15T11:00:00",
                                                   "lastReviewedAt": "2025-01-17T16:00:00",
