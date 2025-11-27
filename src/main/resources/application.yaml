@@ -18,7 +18,7 @@ spring:
 
 # JWT 설정
 jwt:
-  secret-key: ebbinghaus-ttopullae-secret-key-for-jwt-token-generation-and-validation-2025
+  secret-key: ${ACCESS_TOKEN_SECRET_KEY:ebbinghaus-ttopullae-secret-key-for-jwt-token-generation-and-validation-2025}
   token-expiration-seconds: 86400  # 1일 (24시간)
   cookie-expiration-seconds: 86400  # 1일 (24시간)
 
