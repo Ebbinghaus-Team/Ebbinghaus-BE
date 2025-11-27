@@ -46,7 +46,7 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        
+
         List<Server> servers = List.of(
                 new Server().url("http://localhost:8080").description("로컬 서버"),
                 new Server().url("https://ebbinghaus.chxghee.com").description("메인 서버")
