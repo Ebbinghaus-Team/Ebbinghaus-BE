@@ -180,7 +180,7 @@ public class StudyRoomService {
         // 활성 멤버십 조회
         List<StudyRoomMember> memberships = studyRoomMemberRepository.findAllByUserAndActive(user, true);
 
-        // 각 그룹별 문제 수 및 완료 문제 수 집계
+        // 각 그룹별 문제 수, 완료 문제 수, 멤버 수 집계
         List<GroupRoomInfo> roomInfos = memberships.stream()
                 .map(member -> {
                     StudyRoom studyRoom = member.getStudyRoom();
@@ -188,6 +188,7 @@ public class StudyRoomService {
                     int graduatedProblems = problemReviewStateRepository.countByUserAndProblem_StudyRoomAndGate(
                             user, studyRoom, ReviewGate.GRADUATED
                     );
+                    int memberCount = studyRoomMemberRepository.countByStudyRoomAndActive(studyRoom, true);
 
                     return new GroupRoomInfo(
                             studyRoom.getStudyRoomId(),
@@ -197,6 +198,7 @@ public class StudyRoomService {
                             studyRoom.getJoinCode(),
                             totalProblems,
                             graduatedProblems,
+                            memberCount,
                             member.getCreatedAt() // 참여일
                     );
                 })

@@ -15,6 +15,7 @@ public record GroupRoomListResult(
         String joinCode,
         int totalProblems,
         int graduatedProblems,
+        int memberCount,
         LocalDateTime joinedAt
     ) {
     }

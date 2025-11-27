@@ -781,6 +781,8 @@ class StudyRoomServiceTest {
                 .willReturn(12);
         given(problemReviewStateRepository.countByUserAndProblem_StudyRoomAndGate(mockUser, group2, ReviewGate.GRADUATED))
                 .willReturn(18);
+        given(studyRoomMemberRepository.countByStudyRoomAndActive(group1, true)).willReturn(5);
+        given(studyRoomMemberRepository.countByStudyRoomAndActive(group2, true)).willReturn(3);
 
         // when
         GroupRoomListResult result = studyRoomService.getGroupRooms(userId);
@@ -796,6 +798,7 @@ class StudyRoomServiceTest {
         assertThat(firstGroup.joinCode()).isEqualTo("CODE001");
         assertThat(firstGroup.totalProblems()).isEqualTo(20);
         assertThat(firstGroup.graduatedProblems()).isEqualTo(12);
+        assertThat(firstGroup.memberCount()).isEqualTo(5);
 
         GroupRoomListResult.GroupRoomInfo secondGroup = result.rooms().get(1);
         assertThat(secondGroup.studyRoomId()).isEqualTo(20L);
@@ -804,12 +807,14 @@ class StudyRoomServiceTest {
         assertThat(secondGroup.joinCode()).isEqualTo("CODE002");
         assertThat(secondGroup.totalProblems()).isEqualTo(30);
         assertThat(secondGroup.graduatedProblems()).isEqualTo(18);
+        assertThat(secondGroup.memberCount()).isEqualTo(3);
 
         verify(userRepository, times(1)).findById(userId);
         verify(studyRoomMemberRepository, times(1)).findAllByUserAndActive(mockUser, true);
         verify(problemRepository, times(2)).countByStudyRoom(any(StudyRoom.class));
         verify(problemReviewStateRepository, times(2))
                 .countByUserAndProblem_StudyRoomAndGate(any(User.class), any(StudyRoom.class), eq(ReviewGate.GRADUATED));
+        verify(studyRoomMemberRepository, times(2)).countByStudyRoomAndActive(any(StudyRoom.class), eq(true));
     }
 
     @Test

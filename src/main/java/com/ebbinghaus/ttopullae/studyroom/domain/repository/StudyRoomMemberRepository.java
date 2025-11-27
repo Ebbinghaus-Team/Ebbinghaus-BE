@@ -11,4 +11,6 @@ public interface StudyRoomMemberRepository extends JpaRepository<StudyRoomMember
     boolean existsByUserAndStudyRoomAndActive(User user, StudyRoom studyRoom, Boolean active);
 
     List<StudyRoomMember> findAllByUserAndActive(User user, Boolean active);
+
+    int countByStudyRoomAndActive(StudyRoom studyRoom, Boolean active);
 }

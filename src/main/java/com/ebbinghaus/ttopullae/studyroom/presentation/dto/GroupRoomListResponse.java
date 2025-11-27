@@ -17,6 +17,7 @@ public record GroupRoomListResponse(
         String joinCode,
         int totalProblems,
         int graduatedProblems,
+        int memberCount,
         LocalDateTime joinedAt
     ) {
     }
@@ -31,6 +32,7 @@ public record GroupRoomListResponse(
                         info.joinCode(),
                         info.totalProblems(),
                         info.graduatedProblems(),
+                        info.memberCount(),
                         info.joinedAt()
                 ))
                 .toList();

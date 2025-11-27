@@ -504,9 +504,11 @@ class StudyRoomControllerTest {
                 .andExpect(jsonPath("$.rooms[0].joinCode").value("ABC12345"))
                 .andExpect(jsonPath("$.rooms[0].totalProblems").value(0))
                 .andExpect(jsonPath("$.rooms[0].graduatedProblems").value(0))
+                .andExpect(jsonPath("$.rooms[0].memberCount").value(1))
                 .andExpect(jsonPath("$.rooms[1].name").value("CS 스터디"))
                 .andExpect(jsonPath("$.rooms[1].category").value("CS"))
-                .andExpect(jsonPath("$.rooms[1].joinCode").value("XYZ67890"));
+                .andExpect(jsonPath("$.rooms[1].joinCode").value("XYZ67890"))
+                .andExpect(jsonPath("$.rooms[1].memberCount").value(1));
     }
 
     @Test

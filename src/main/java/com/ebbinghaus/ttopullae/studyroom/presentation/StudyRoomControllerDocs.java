@@ -318,7 +318,7 @@ public interface StudyRoomControllerDocs {
 
     @Operation(
             summary = "그룹 스터디 목록 조회",
-            description = "사용자가 속한 그룹 스터디 목록을 조회합니다. 각 그룹의 전체 문제 수와 완료한 문제 수(GRADUATED 상태)가 포함됩니다."
+            description = "사용자가 속한 그룹 스터디 목록을 조회합니다. 각 그룹의 전체 문제 수, 완료한 문제 수(GRADUATED 상태), 그룹에 참여 중인 스터디원 수가 포함됩니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "그룹 스터디 목록 조회 성공",
@@ -337,6 +337,7 @@ public interface StudyRoomControllerDocs {
                                                   "joinCode": "ABC12345",
                                                   "totalProblems": 20,
                                                   "graduatedProblems": 12,
+                                                  "memberCount": 5,
                                                   "joinedAt": "2025-01-17T11:00:00"
                                                 },
                                                 {
@@ -347,6 +348,7 @@ public interface StudyRoomControllerDocs {
                                                   "joinCode": "XYZ98765",
                                                   "totalProblems": 30,
                                                   "graduatedProblems": 18,
+                                                  "memberCount": 3,
                                                   "joinedAt": "2025-01-18T15:30:00"
                                                 }
                                               ],
