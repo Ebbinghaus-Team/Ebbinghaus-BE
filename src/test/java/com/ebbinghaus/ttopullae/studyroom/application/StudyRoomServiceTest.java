@@ -10,6 +10,7 @@ import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemAttemptRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemRepository;
 import com.ebbinghaus.ttopullae.problem.domain.repository.ProblemReviewStateRepository;
+import com.ebbinghaus.ttopullae.problem.domain.repository.dto.ProblemWithMyReviewDto;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinCommand;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomJoinResult;
 import com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomListResult;
@@ -1227,7 +1228,10 @@ class StudyRoomServiceTest {
                 .willReturn(true);
         given(problemRepository.findGroupRoomProblemsWithReviewStateAndCreator(
                 eq(groupRoomId), eq(userId), eq(true), eq(false), eq(null)
-        )).willReturn(Arrays.asList(problem1, problem2));
+        )).willReturn(Arrays.asList(
+                new ProblemWithMyReviewDto(problem1, null),
+                new ProblemWithMyReviewDto(problem2, null)
+        ));
         given(problemAttemptRepository.findLatestAttemptsByUserAndProblems(eq(userId), anyList()))
                 .willReturn(Collections.emptyList());
 
