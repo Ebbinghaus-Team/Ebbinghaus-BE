@@ -1546,4 +1546,226 @@ class StudyRoomServiceTest {
         verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
         verify(problemRepository, never()).findGroupRoomProblemsWithReviewStateAndCreator(anyLong(), anyLong(), anyBoolean(), anyBoolean(), any());
     }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 성공 - 방장이 맨 앞에 위치")
+    void getGroupRoomMembers_Success() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        User ownerUser = User.builder()
+                .userId(2L)
+                .email("owner@example.com")
+                .username("방장유저")
+                .receiveNotifications(true)
+                .build();
+
+        User member1 = User.builder()
+                .userId(3L)
+                .email("member1@example.com")
+                .username("멤버1")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(ownerUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        StudyRoomMember ownerMember = StudyRoomMember.builder()
+                .memberId(1L)
+                .studyRoom(groupRoom)
+                .user(ownerUser)
+                .active(true)
+                .build();
+
+        StudyRoomMember regularMember1 = StudyRoomMember.builder()
+                .memberId(2L)
+                .studyRoom(groupRoom)
+                .user(member1)
+                .active(true)
+                .build();
+
+        StudyRoomMember regularMember2 = StudyRoomMember.builder()
+                .memberId(3L)
+                .studyRoom(groupRoom)
+                .user(mockUser)
+                .active(true)
+                .build();
+
+        List<StudyRoomMember> members = Arrays.asList(regularMember2, ownerMember, regularMember1);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(true);
+        given(studyRoomMemberRepository.findAllByStudyRoomAndActiveWithUser(groupRoom, true))
+                .willReturn(members);
+
+        // when
+        com.ebbinghaus.ttopullae.studyroom.application.dto.GroupRoomMemberListResult result =
+                studyRoomService.getGroupRoomMembers(userId, groupRoomId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.studyRoomId()).isEqualTo(groupRoomId);
+        assertThat(result.studyRoomName()).isEqualTo("알고리즘 스터디");
+        assertThat(result.totalMembers()).isEqualTo(3);
+        assertThat(result.members()).hasSize(3);
+
+        // 방장이 맨 앞에 위치하는지 확인
+        assertThat(result.members().get(0).userId()).isEqualTo(2L);
+        assertThat(result.members().get(0).username()).isEqualTo("방장유저");
+        assertThat(result.members().get(0).isOwner()).isTrue();
+
+        // 나머지 멤버는 방장이 아님
+        assertThat(result.members().get(1).isOwner()).isFalse();
+        assertThat(result.members().get(2).isOwner()).isFalse();
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
+        verify(studyRoomMemberRepository, times(1)).findAllByStudyRoomAndActiveWithUser(groupRoom, true);
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 사용자를 찾을 수 없음")
+    void getGroupRoomMembers_Fail_UserNotFound() {
+        // given
+        Long userId = 999L;
+        Long groupRoomId = 2L;
+
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomMembers(userId, groupRoomId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 스터디룸을 찾을 수 없음")
+    void getGroupRoomMembers_Fail_StudyRoomNotFound() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 999L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomMembers(userId, groupRoomId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.STUDY_ROOM_NOT_FOUND);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, never()).existsByUserAndStudyRoomAndActive(any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 개인 공부방 ID로 요청")
+    void getGroupRoomMembers_Fail_NotGroupRoom() {
+        // given
+        Long userId = 1L;
+        Long personalRoomId = 1L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom personalRoom = StudyRoom.builder()
+                .studyRoomId(personalRoomId)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 개념 정리")
+                .category("프로그래밍")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(personalRoomId)).willReturn(Optional.of(personalRoom));
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomMembers(userId, personalRoomId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_GROUP_ROOM);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(personalRoomId);
+        verify(studyRoomMemberRepository, never()).existsByUserAndStudyRoomAndActive(any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 그룹 멤버가 아님")
+    void getGroupRoomMembers_Fail_NotGroupMember() {
+        // given
+        Long userId = 1L;
+        Long groupRoomId = 2L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .username("테스트유저")
+                .receiveNotifications(true)
+                .build();
+
+        User ownerUser = User.builder()
+                .userId(2L)
+                .email("owner@example.com")
+                .username("방장유저")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom groupRoom = StudyRoom.builder()
+                .studyRoomId(groupRoomId)
+                .owner(ownerUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(studyRoomRepository.findById(groupRoomId)).willReturn(Optional.of(groupRoom));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true))
+                .willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> studyRoomService.getGroupRoomMembers(userId, groupRoomId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", StudyRoomException.NOT_GROUP_MEMBER);
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(studyRoomRepository, times(1)).findById(groupRoomId);
+        verify(studyRoomMemberRepository, times(1)).existsByUserAndStudyRoomAndActive(mockUser, groupRoom, true);
+        verify(studyRoomMemberRepository, never()).findAllByStudyRoomAndActiveWithUser(any(), anyBoolean());
+    }
 }
