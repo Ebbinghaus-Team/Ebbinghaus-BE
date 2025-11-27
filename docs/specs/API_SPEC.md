@@ -2286,4 +2286,167 @@ Cookie: accessToken={JWT_TOKEN}
 
 5. **기본값 false**
    - 타인 문제는 기본적으로 복습에 포함하지 않음
-   - 사용자가 명시적으로 선택한 문제만 복습 주기에 포함
+
+---
+
+## 10. 그룹 스터디 멤버 목록 조회 API
+
+### 10.1. 기본 정보
+
+- **Endpoint**: `GET /api/study-rooms/group/{studyRoomId}/members`
+- **설명**: 그룹 스터디의 멤버 목록을 조회합니다. 방장이 목록 맨 앞에 표시됩니다.
+- **인증**: 필수 (JWT 쿠키)
+- **권한**: 그룹 멤버만 접근 가능
+
+### 10.2. Request
+
+#### Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| studyRoomId | Long | O | 그룹 스터디 ID |
+
+#### Headers
+
+```
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### Request Example
+
+```http
+GET /api/study-rooms/group/2/members HTTP/1.1
+Host: localhost:8080
+Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 10.3. Response
+
+#### Success (200 OK)
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| studyRoomId | Long | 그룹 스터디 ID | 2 |
+| studyRoomName | String | 그룹 스터디 이름 | "알고리즘 스터디" |
+| totalMembers | int | 총 멤버 수 | 3 |
+| members | Array | 멤버 목록 (방장이 맨 앞) | - |
+| members[].userId | Long | 멤버 사용자 ID | 1 |
+| members[].username | String | 멤버 이름 | "김철수" |
+| members[].isOwner | Boolean | 방장 여부 | true |
+
+#### Response Example
+
+```json
+{
+  "studyRoomId": 2,
+  "studyRoomName": "알고리즘 스터디",
+  "totalMembers": 3,
+  "members": [
+    {
+      "userId": 1,
+      "username": "김철수",
+      "isOwner": true
+    },
+    {
+      "userId": 2,
+      "username": "이영희",
+      "isOwner": false
+    },
+    {
+      "userId": 3,
+      "username": "박민수",
+      "isOwner": false
+    }
+  ]
+}
+```
+
+### 10.4. Error Responses
+
+#### 400 Bad Request - 개인 공부방 ID로 요청
+
+**개인 공부방 ID로 그룹 멤버 목록을 조회하려는 경우**
+```json
+{
+  "title": "그룹 스터디가 아님",
+  "status": 400,
+  "detail": "참여 코드가 유효하지 않습니다. 개인 공부방에는 참여할 수 없습니다.",
+  "instance": "/api/study-rooms/group/1/members"
+}
+```
+
+#### 401 Unauthorized - 인증 실패
+
+**JWT 토큰이 없거나 유효하지 않은 경우**
+```json
+{
+  "title": "토큰을 찾을 수 없음",
+  "status": 401,
+  "detail": "인증 토큰이 제공되지 않았습니다.",
+  "instance": "/api/study-rooms/group/2/members"
+}
+```
+
+#### 403 Forbidden - 그룹 멤버가 아님
+
+**그룹 멤버가 아닌 사용자가 멤버 목록 조회를 시도한 경우**
+```json
+{
+  "title": "그룹 멤버가 아님",
+  "status": 403,
+  "detail": "해당 그룹 스터디의 멤버만 접근할 수 있습니다.",
+  "instance": "/api/study-rooms/group/2/members"
+}
+```
+
+#### 404 Not Found - 스터디룸을 찾을 수 없음
+
+**존재하지 않는 스터디룸 ID로 요청한 경우**
+```json
+{
+  "title": "스터디룸을 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 참여 코드의 스터디룸이 존재하지 않습니다.",
+  "instance": "/api/study-rooms/group/999/members"
+}
+```
+
+### 10.5. 비즈니스 규칙
+
+#### 10.5.1. 접근 권한
+
+1. **그룹 멤버만 조회 가능**
+   - 그룹 스터디의 `active` 상태인 멤버만 멤버 목록 조회 가능
+   - 그룹에 참여하지 않은 사용자는 403 Forbidden 응답
+
+2. **개인 공부방 차단**
+   - 개인 공부방(`PERSONAL`)에는 멤버 개념이 없음
+   - 개인 공부방 ID로 요청 시 400 Bad Request 응답
+
+#### 10.5.2. 멤버 목록 정렬
+
+1. **방장 우선 정렬**
+   - 응답의 `members` 배열에서 `isOwner: true`인 방장이 맨 앞에 위치
+   - 나머지 멤버는 그룹 가입 순서대로 정렬 (`createdAt` ASC)
+
+2. **방장 표시**
+   - `isOwner` 필드로 방장 여부를 명시적으로 표시
+   - 각 그룹에는 항상 정확히 1명의 방장이 존재
+
+### 10.6. 주요 특징
+
+1. **방장 식별**
+   - 각 멤버의 `isOwner` 필드로 방장 여부를 쉽게 확인
+   - UI에서 방장 배지, 특별 권한 표시 등에 활용 가능
+
+2. **그룹 멤버십 검증**
+   - API 호출 시 사용자의 그룹 멤버십을 자동으로 검증
+   - 비멤버의 접근을 원천 차단하여 보안 강화
+
+3. **N+1 쿼리 방지**
+   - Repository에서 JOIN FETCH를 사용하여 User 정보를 함께 조회
+   - 멤버 수에 관계없이 일정한 쿼리 성능 보장
+
+4. **실시간 멤버 정보**
+   - 데이터베이스에서 직접 조회하여 최신 멤버 목록 제공
+   - 멤버 추가/탈퇴 즉시 반영
