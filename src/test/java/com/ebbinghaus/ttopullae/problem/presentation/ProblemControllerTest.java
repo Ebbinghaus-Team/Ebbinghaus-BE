@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -421,5 +422,166 @@ class ProblemControllerTest {
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("서술형 데이터 오류"));
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 성공 - 객관식 문제")
+    void getProblemDetail_Success_McqWithChoices() throws Exception {
+        // given: 객관식 문제 생성
+        Map<String, Object> request = new HashMap<>();
+        request.put("problemType", "MCQ");
+        request.put("question", "자바의 접근 제어자가 아닌 것은?");
+        request.put("explanation", "friend는 C++의 접근 제어자입니다.");
+        request.put("choices", List.of("public", "private", "protected", "friend"));
+        request.put("correctChoiceIndex", 3);
+
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long problemId = objectMapper.readTree(createResponse).get("problemId").asLong();
+
+        // when & then: 문제 상세 조회
+        mockMvc.perform(get("/api/problems/{problemId}", problemId)
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.problemId").value(problemId))
+                .andExpect(jsonPath("$.question").value("자바의 접근 제어자가 아닌 것은?"))
+                .andExpect(jsonPath("$.problemType").value("MCQ"))
+                .andExpect(jsonPath("$.studyRoomId").value(testStudyRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.choices").isArray())
+                .andExpect(jsonPath("$.choices.length()").value(4))
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))
+                .andExpect(jsonPath("$.reviewCount").value(0))
+                .andExpect(jsonPath("$.includeInReview").value(true));
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 성공 - 단답형 문제 (선택지 없음)")
+    void getProblemDetail_Success_ShortWithoutChoices() throws Exception {
+        // given: 단답형 문제 생성
+        Map<String, Object> request = new HashMap<>();
+        request.put("problemType", "SHORT");
+        request.put("question", "자바에서 문자열을 다루는 불변 클래스는?");
+        request.put("explanation", "String 클래스입니다.");
+        request.put("answerText", "String");
+
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long problemId = objectMapper.readTree(createResponse).get("problemId").asLong();
+
+        // when & then: 문제 상세 조회 (선택지 없어야 함)
+        mockMvc.perform(get("/api/problems/{problemId}", problemId)
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.problemId").value(problemId))
+                .andExpect(jsonPath("$.question").value("자바에서 문자열을 다루는 불변 클래스는?"))
+                .andExpect(jsonPath("$.problemType").value("SHORT"))
+                .andExpect(jsonPath("$.studyRoomId").value(testStudyRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.choices").isEmpty())
+                .andExpect(jsonPath("$.currentGate").value("GATE_1"))
+                .andExpect(jsonPath("$.reviewCount").value(0))
+                .andExpect(jsonPath("$.includeInReview").value(true));
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - JWT 토큰 없음")
+    void getProblemDetail_Fail_NoToken() throws Exception {
+        // given: 문제 ID (임의의 값)
+        Long problemId = 1L;
+
+        // when & then
+        mockMvc.perform(get("/api/problems/{problemId}", problemId))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 잘못된 JWT 토큰")
+    void getProblemDetail_Fail_InvalidToken() throws Exception {
+        // given: 문제 ID (임의의 값)
+        Long problemId = 1L;
+
+        // when & then
+        mockMvc.perform(get("/api/problems/{problemId}", problemId)
+                        .cookie(new Cookie("accessToken", "invalid.jwt.token")))
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 존재하지 않는 문제")
+    void getProblemDetail_Fail_ProblemNotFound() throws Exception {
+        // given: 존재하지 않는 문제 ID
+        Long invalidProblemId = 99999L;
+
+        // when & then
+        mockMvc.perform(get("/api/problems/{problemId}", invalidProblemId)
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("문제를 찾을 수 없음"));
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 접근 권한 없음")
+    void getProblemDetail_Fail_AccessDenied() throws Exception {
+        // given: 다른 사용자의 개인방 문제 생성
+        User anotherUser = User.builder()
+                .email("another@example.com")
+                .password("password456")
+                .username("다른유저")
+                .receiveNotifications(false)
+                .build();
+        userRepository.save(anotherUser);
+
+        StudyRoom anotherRoom = StudyRoom.builder()
+                .owner(anotherUser)
+                .roomType(RoomType.PERSONAL)
+                .name("다른 사용자의 스터디룸")
+                .description("비공개 스터디룸")
+                .category("기타")
+                .build();
+        studyRoomRepository.save(anotherRoom);
+
+        String anotherToken = jwtTokenProvider.generateToken(anotherUser.getUserId());
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("problemType", "OX");
+        request.put("question", "비공개 문제");
+        request.put("explanation", "접근 불가");
+        request.put("answerBoolean", true);
+
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", anotherRoom.getStudyRoomId())
+                        .cookie(new Cookie("accessToken", anotherToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long problemId = objectMapper.readTree(createResponse).get("problemId").asLong();
+
+        // when & then: testUser가 다른 사용자의 개인방 문제 조회 시도
+        mockMvc.perform(get("/api/problems/{problemId}", problemId)
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("스터디룸 접근 권한 없음"));
     }
 }

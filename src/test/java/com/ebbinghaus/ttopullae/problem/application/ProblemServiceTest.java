@@ -1255,4 +1255,239 @@ class ProblemServiceTest {
 
         verify(problemReviewStateRepository, never()).findByUserAndProblem(any(), any());
     }
+
+    @Test
+    @DisplayName("문제 상세 조회 성공 - 객관식 문제, 복습 상태 있음")
+    void getProblemDetail_Success_McqWithReviewState() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 1L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .password("password")
+                .username("테스터")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.MCQ)
+                .question("자바의 접근 제어자가 아닌 것은?")
+                .explanation("friend는 C++의 접근 제어자입니다.")
+                .correctChoiceIndex(3)
+                .build();
+
+        List<ProblemChoice> choices = List.of(
+                ProblemChoice.builder().choiceText("public").build(),
+                ProblemChoice.builder().choiceText("private").build(),
+                ProblemChoice.builder().choiceText("protected").build(),
+                ProblemChoice.builder().choiceText("friend").build()
+        );
+
+        ProblemReviewState mockReviewState = ProblemReviewState.builder()
+                .user(mockUser)
+                .problem(mockProblem)
+                .gate(ReviewGate.GATE_1)
+                .nextReviewDate(LocalDate.now().plusDays(1))
+                .reviewCount(0)
+                .includeInReview(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+        given(problemChoiceRepository.findByProblem(mockProblem)).willReturn(choices);
+        given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
+                .willReturn(Optional.of(mockReviewState));
+
+        // When
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemDetailResult result =
+                problemService.getProblemDetail(userId, problemId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.problemId()).isEqualTo(problemId);
+        assertThat(result.question()).isEqualTo("자바의 접근 제어자가 아닌 것은?");
+        assertThat(result.problemType()).isEqualTo(ProblemType.MCQ);
+        assertThat(result.choices()).hasSize(4);
+        assertThat(result.choices()).containsExactly("public", "private", "protected", "friend");
+        assertThat(result.currentGate()).isEqualTo(ReviewGate.GATE_1);
+        assertThat(result.reviewCount()).isEqualTo(0);
+        assertThat(result.includeInReview()).isTrue();
+
+        verify(userRepository, times(1)).findById(userId);
+        verify(problemRepository, times(1)).findById(problemId);
+        verify(problemChoiceRepository, times(1)).findByProblem(mockProblem);
+        verify(problemReviewStateRepository, times(1)).findByUserAndProblem(mockUser, mockProblem);
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 성공 - 단답형 문제, 복습 상태 없음")
+    void getProblemDetail_Success_ShortWithoutReviewState() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 2L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .password("password")
+                .username("테스터")
+                .receiveNotifications(true)
+                .build();
+
+        User otherUser = User.builder()
+                .userId(2L)
+                .email("other@example.com")
+                .password("password")
+                .username("다른사람")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(otherUser)
+                .roomType(RoomType.GROUP)
+                .name("그룹 스터디")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(otherUser)
+                .problemType(ProblemType.SHORT)
+                .question("자바에서 문자열을 다루는 불변 클래스는?")
+                .explanation("String 클래스입니다.")
+                .answerText("String")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, mockStudyRoom, true))
+                .willReturn(true);
+        given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
+                .willReturn(Optional.empty());
+
+        // When
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemDetailResult result =
+                problemService.getProblemDetail(userId, problemId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.problemId()).isEqualTo(problemId);
+        assertThat(result.question()).isEqualTo("자바에서 문자열을 다루는 불변 클래스는?");
+        assertThat(result.problemType()).isEqualTo(ProblemType.SHORT);
+        assertThat(result.choices()).isNull();
+        assertThat(result.currentGate()).isNull();
+        assertThat(result.nextReviewDate()).isNull();
+        assertThat(result.reviewCount()).isNull();
+        assertThat(result.includeInReview()).isNull();
+
+        verify(problemChoiceRepository, never()).findByProblem(any());
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 사용자 없음")
+    void getProblemDetail_UserNotFound() {
+        // Given
+        Long userId = 999L;
+        Long problemId = 1L;
+
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.getProblemDetail(userId, problemId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
+
+        verify(problemRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 문제 없음")
+    void getProblemDetail_ProblemNotFound() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 999L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .password("password")
+                .username("테스터")
+                .receiveNotifications(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.getProblemDetail(userId, problemId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", ProblemException.PROBLEM_NOT_FOUND);
+
+        verify(problemChoiceRepository, never()).findByProblem(any());
+    }
+
+    @Test
+    @DisplayName("문제 상세 조회 실패 - 스터디룸 접근 권한 없음")
+    void getProblemDetail_AccessDenied() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 1L;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .password("password")
+                .username("테스터")
+                .receiveNotifications(true)
+                .build();
+
+        User otherUser = User.builder()
+                .userId(2L)
+                .email("other@example.com")
+                .password("password")
+                .username("다른사람")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(otherUser)
+                .roomType(RoomType.GROUP)
+                .name("그룹 스터디")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(otherUser)
+                .problemType(ProblemType.MCQ)
+                .question("테스트 문제")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+        given(studyRoomMemberRepository.existsByUserAndStudyRoomAndActive(mockUser, mockStudyRoom, true))
+                .willReturn(false);
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.getProblemDetail(userId, problemId))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", ProblemException.ROOM_ACCESS_DENIED);
+
+        verify(problemChoiceRepository, never()).findByProblem(any());
+        verify(problemReviewStateRepository, never()).findByUserAndProblem(any(), any());
+    }
 }
