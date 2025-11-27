@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # 1. MySQL
+  mysql-server:
+    image: mysql:8.0
+    container_name: mysql-ebbinghaus
+    environment:
+      MYSQL_ROOT_PASSWORD: asd1234
+      MYSQL_DATABASE: main_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
+
+  # 2. Spring Boot Application
+  spring-app:
+    build: . # 현재 폴더의 Dockerfile로 빌드
+    container_name: ttopullae-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql-server
+    env_file:
+      - ./.env
+    environment:
+      DB_HOST: mysql-server
+
+    restart: always

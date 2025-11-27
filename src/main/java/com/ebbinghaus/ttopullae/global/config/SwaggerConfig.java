@@ -5,8 +5,11 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 @OpenAPIDefinition(
@@ -43,7 +46,14 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
+
+        List<Server> servers = List.of(
+                new Server().url("http://localhost:8080").description("로컬 서버"),
+                new Server().url("https://ebbinghaus.chxghee.com").description("메인 서버")
+        );
+
         return new OpenAPI()
+                .servers(servers)
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME_NAME, createSecurityScheme()))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME));

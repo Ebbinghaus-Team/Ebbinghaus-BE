@@ -9,6 +9,9 @@ import java.util.List;
 public record PersonalRoomProblemListResponse(
     Long studyRoomId,
     String studyRoomName,
+    String studyRoomCategory,
+    String studyRoomDescription,
+    DashboardDto dashboard,
     List<ProblemSummary> problems,
     int totalCount
 ) {
@@ -40,8 +43,27 @@ public record PersonalRoomProblemListResponse(
         return new PersonalRoomProblemListResponse(
                 result.studyRoomId(),
                 result.studyRoomName(),
+                result.studyRoomCategory(),
+                result.studyRoomDescription(),
+                DashboardDto.from(result),
                 summaries,
                 result.totalCount()
         );
+    }
+
+    public record DashboardDto(
+            int totalCount,
+            int completedCount,
+            int incompletedCount,
+            double progressRate
+    ) {
+        static DashboardDto from(PersonalRoomProblemListResult result) {
+            return new DashboardDto(
+                    result.dashboard().totalCount(),
+                    result.dashboard().completedCount(),
+                    result.dashboard().incompletedCount(),
+                    result.dashboard().progressRate()
+            );
+        }
     }
 }

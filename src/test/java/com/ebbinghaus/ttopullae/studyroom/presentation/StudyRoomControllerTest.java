@@ -504,9 +504,11 @@ class StudyRoomControllerTest {
                 .andExpect(jsonPath("$.rooms[0].joinCode").value("ABC12345"))
                 .andExpect(jsonPath("$.rooms[0].totalProblems").value(0))
                 .andExpect(jsonPath("$.rooms[0].graduatedProblems").value(0))
+                .andExpect(jsonPath("$.rooms[0].memberCount").value(1))
                 .andExpect(jsonPath("$.rooms[1].name").value("CS 스터디"))
                 .andExpect(jsonPath("$.rooms[1].category").value("CS"))
-                .andExpect(jsonPath("$.rooms[1].joinCode").value("XYZ67890"));
+                .andExpect(jsonPath("$.rooms[1].joinCode").value("XYZ67890"))
+                .andExpect(jsonPath("$.rooms[1].memberCount").value(1));
     }
 
     @Test
@@ -637,5 +639,333 @@ class StudyRoomControllerTest {
                 .andDo(print())
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.title").value("스터디룸 소유자가 아님"));
+    }
+
+    // ===== 그룹 공부방 문제 목록 조회 API 통합 테스트 =====
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 성공 - ALL 필터")
+    void getGroupRoomProblems_Success_AllFilter() throws Exception {
+        // given
+        // 그룹 스터디 생성
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        // 그룹 멤버십 생성
+        StudyRoomMember membership = StudyRoomMember.builder()
+                .user(testUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(membership);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studyRoomId").value(groupRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.studyRoomName").value("알고리즘 스터디"))
+                .andExpect(jsonPath("$.problems").isArray())
+                .andExpect(jsonPath("$.totalCount").value(0));
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 성공 - NOT_IN_REVIEW 필터")
+    void getGroupRoomProblems_Success_NotInReviewFilter() throws Exception {
+        // given
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        StudyRoomMember membership = StudyRoomMember.builder()
+                .user(testUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(membership);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "NOT_IN_REVIEW"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studyRoomId").value(groupRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.problems").isArray());
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 개인 공부방 ID로 요청")
+    void getGroupRoomProblems_Fail_NotGroupRoom() throws Exception {
+        // given
+        StudyRoom personalRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+        studyRoomRepository.save(personalRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + personalRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("그룹 스터디가 아님"));
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 그룹 멤버가 아님")
+    void getGroupRoomProblems_Fail_NotGroupMember() throws Exception {
+        // given
+        // 다른 사용자 생성
+        User otherUser = User.builder()
+                .email("other@example.com")
+                .password("password123")
+                .username("다른유저")
+                .receiveNotifications(true)
+                .build();
+        userRepository.save(otherUser);
+
+        // 다른 사용자의 그룹 스터디 생성
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(otherUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        // 다른 사용자만 멤버로 등록 (testUser는 멤버가 아님)
+        StudyRoomMember membership = StudyRoomMember.builder()
+                .user(otherUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(membership);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("그룹 멤버가 아님"));
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 잘못된 필터")
+    void getGroupRoomProblems_Fail_InvalidFilter() throws Exception {
+        // given
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        StudyRoomMember membership = StudyRoomMember.builder()
+                .user(testUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(membership);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "INVALID_FILTER"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("잘못된 필터"));
+    }
+
+    @Test
+    @DisplayName("그룹 공부방 문제 목록 조회 실패 - 존재하지 않는 스터디룸")
+    void getGroupRoomProblems_Fail_StudyRoomNotFound() throws Exception {
+        // given
+        Long nonExistentRoomId = 999L;
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + nonExistentRoomId + "/problems")
+                        .cookie(new Cookie("accessToken", accessToken))
+                        .param("filter", "ALL"))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("스터디룸을 찾을 수 없음"));
+    }
+
+    // ===== 그룹 스터디 멤버 목록 조회 API 통합 테스트 =====
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 성공 - 방장이 맨 앞에 위치")
+    void getGroupRoomMembers_Success() throws Exception {
+        // given
+        // 그룹 스터디 생성
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        // 방장 멤버로 등록
+        StudyRoomMember ownerMembership = StudyRoomMember.builder()
+                .user(testUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(ownerMembership);
+
+        // 다른 멤버 추가
+        User member1 = User.builder()
+                .email("member1@example.com")
+                .password("password123")
+                .username("멤버1")
+                .receiveNotifications(true)
+                .build();
+        userRepository.save(member1);
+
+        StudyRoomMember member1Ship = StudyRoomMember.builder()
+                .user(member1)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(member1Ship);
+
+        User member2 = User.builder()
+                .email("member2@example.com")
+                .password("password123")
+                .username("멤버2")
+                .receiveNotifications(true)
+                .build();
+        userRepository.save(member2);
+
+        StudyRoomMember member2Ship = StudyRoomMember.builder()
+                .user(member2)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(member2Ship);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/members")
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studyRoomId").value(groupRoom.getStudyRoomId()))
+                .andExpect(jsonPath("$.studyRoomName").value("알고리즘 스터디"))
+                .andExpect(jsonPath("$.totalMembers").value(3))
+                .andExpect(jsonPath("$.members").isArray())
+                .andExpect(jsonPath("$.members.length()").value(3))
+                // 방장이 맨 앞에 위치
+                .andExpect(jsonPath("$.members[0].userId").value(testUser.getUserId()))
+                .andExpect(jsonPath("$.members[0].username").value("테스트유저"))
+                .andExpect(jsonPath("$.members[0].isOwner").value(true))
+                // 나머지 멤버는 방장이 아님
+                .andExpect(jsonPath("$.members[1].isOwner").value(false))
+                .andExpect(jsonPath("$.members[2].isOwner").value(false));
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 개인 공부방 ID로 요청")
+    void getGroupRoomMembers_Fail_NotGroupRoom() throws Exception {
+        // given
+        StudyRoom personalRoom = StudyRoom.builder()
+                .owner(testUser)
+                .roomType(RoomType.PERSONAL)
+                .name("자바 스터디")
+                .description("자바 기초")
+                .category("프로그래밍")
+                .joinCode(null)
+                .build();
+        studyRoomRepository.save(personalRoom);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + personalRoom.getStudyRoomId() + "/members")
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("그룹 스터디가 아님"));
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 그룹 멤버가 아님")
+    void getGroupRoomMembers_Fail_NotGroupMember() throws Exception {
+        // given
+        // 다른 사용자 생성
+        User otherUser = User.builder()
+                .email("other@example.com")
+                .password("password123")
+                .username("다른유저")
+                .receiveNotifications(true)
+                .build();
+        userRepository.save(otherUser);
+
+        // 다른 사용자의 그룹 스터디 생성
+        StudyRoom groupRoom = StudyRoom.builder()
+                .owner(otherUser)
+                .roomType(RoomType.GROUP)
+                .name("알고리즘 스터디")
+                .description("알고리즘 공부")
+                .category("알고리즘")
+                .joinCode("ABC12345")
+                .build();
+        studyRoomRepository.save(groupRoom);
+
+        // 다른 사용자만 멤버로 등록 (testUser는 멤버가 아님)
+        StudyRoomMember membership = StudyRoomMember.builder()
+                .user(otherUser)
+                .studyRoom(groupRoom)
+                .active(true)
+                .build();
+        studyRoomMemberRepository.save(membership);
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + groupRoom.getStudyRoomId() + "/members")
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.title").value("그룹 멤버가 아님"));
+    }
+
+    @Test
+    @DisplayName("그룹 스터디 멤버 목록 조회 실패 - 존재하지 않는 스터디룸")
+    void getGroupRoomMembers_Fail_StudyRoomNotFound() throws Exception {
+        // given
+        Long nonExistentRoomId = 999L;
+
+        // when & then
+        mockMvc.perform(get("/api/study-rooms/group/" + nonExistentRoomId + "/members")
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("스터디룸을 찾을 수 없음"));
     }
 }

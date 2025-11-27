@@ -4,21 +4,21 @@ spring:
 
 
   datasource:
-    url: jdbc:mysql://localhost:3306/main_db
+    url: jdbc:mysql://${DB_HOST:localhost}:3306/main_db
     username: root
     password: asd1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
 
 # JWT 설정
 jwt:
-  secret-key: ebbinghaus-ttopullae-secret-key-for-jwt-token-generation-and-validation-2025
+  secret-key: ${ACCESS_TOKEN_SECRET_KEY:ebbinghaus-ttopullae-secret-key-for-jwt-token-generation-and-validation-2025}
   token-expiration-seconds: 86400  # 1일 (24시간)
   cookie-expiration-seconds: 86400  # 1일 (24시간)
 

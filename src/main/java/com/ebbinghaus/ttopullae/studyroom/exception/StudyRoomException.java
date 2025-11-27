@@ -12,7 +12,9 @@ public enum StudyRoomException implements ExceptionCode {
     ALREADY_JOINED(HttpStatus.CONFLICT, "이미 참여한 스터디룸", "이미 참여한 스터디룸입니다."),
     NOT_GROUP_ROOM(HttpStatus.BAD_REQUEST, "그룹 스터디가 아님", "참여 코드가 유효하지 않습니다. 개인 공부방에는 참여할 수 없습니다."),
     NOT_ROOM_OWNER(HttpStatus.FORBIDDEN, "스터디룸 소유자가 아님", "해당 스터디룸의 소유자만 접근할 수 있습니다."),
-    NOT_PERSONAL_ROOM(HttpStatus.BAD_REQUEST, "개인 공부방이 아님", "해당 스터디룸은 개인 공부방이 아닙니다.");
+    NOT_PERSONAL_ROOM(HttpStatus.BAD_REQUEST, "개인 공부방이 아님", "해당 스터디룸은 개인 공부방이 아닙니다."),
+    NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "그룹 멤버가 아님", "해당 그룹 스터디의 멤버만 접근할 수 있습니다."),
+    INVALID_FILTER(HttpStatus.BAD_REQUEST, "잘못된 필터", "유효하지 않은 필터 값입니다. ALL, NOT_IN_REVIEW, GATE_1, GATE_2, GRADUATED 중 하나를 사용하세요.");
 
     private final HttpStatus httpStatus;
     private final String title;
