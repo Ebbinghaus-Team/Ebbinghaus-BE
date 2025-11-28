@@ -27,7 +27,7 @@ public class ProblemController implements ProblemControllerDocs {
 
     private final ProblemService problemService;
 
-    @PostMapping("/study-rooms/{studyRoomId}")
+    @PostMapping("/study-rooms/{studyRoomId}/problems")
     public ResponseEntity<ProblemCreateResponse> createProblem(
             @LoginUser Long userId,
             @PathVariable Long studyRoomId,

@@ -953,7 +953,7 @@ Cookie: accessToken={JWT_TOKEN}
 {
   "title": "스터디룸 접근 권한 없음",
   "status": 403,
-  "detail": "해당 스터디룸에 접근할 권한이 없습니다.",
+  "detail": "해당 스터디룸의 문제를 풀 수 있는 권한이 없습니다.",
   "instance": "/api/problems/123"
 }
 ```

@@ -100,7 +100,7 @@ public interface ProblemControllerDocs {
                                                       "title": "유효하지 않은 입력값",
                                                       "status": 400,
                                                       "detail": "question: 문제 내용은 필수입니다",
-                                                      "instance": "/api/study-rooms/1"
+                                                      "instance": "/api/study-rooms/1/problems"
                                                     }
                                                     """
                                     ),
@@ -111,7 +111,7 @@ public interface ProblemControllerDocs {
                                                       "title": "객관식 데이터 오류",
                                                       "status": 400,
                                                       "detail": "객관식 문제는 선택지 목록과 정답 인덱스가 필요합니다.",
-                                                      "instance": "/api/study-rooms/1"
+                                                      "instance": "/api/study-rooms/1/problems"
                                                     }
                                                     """
                                     ),
@@ -122,7 +122,7 @@ public interface ProblemControllerDocs {
                                                       "title": "OX 데이터 오류",
                                                       "status": 400,
                                                       "detail": "OX 문제는 정답(true/false)이 필요합니다.",
-                                                      "instance": "/api/study-rooms/1"
+                                                      "instance": "/api/study-rooms/1/problems"
                                                     }
                                                     """
                                     ),
@@ -133,7 +133,7 @@ public interface ProblemControllerDocs {
                                                       "title": "단답형 데이터 오류",
                                                       "status": 400,
                                                       "detail": "단답형 문제는 정답 텍스트가 필요합니다.",
-                                                      "instance": "/api/study-rooms/1"
+                                                      "instance": "/api/study-rooms/1/problems"
                                                     }
                                                     """
                                     ),
@@ -144,7 +144,7 @@ public interface ProblemControllerDocs {
                                                       "title": "서술형 데이터 오류",
                                                       "status": 400,
                                                       "detail": "서술형 문제는 모범 답안과 키워드 목록이 필요합니다.",
-                                                      "instance": "/api/study-rooms/1"
+                                                      "instance": "/api/study-rooms/1/problems"
                                                     }
                                                     """
                                     )
@@ -179,14 +179,14 @@ public interface ProblemControllerDocs {
                                               "title": "스터디룸을 찾을 수 없음",
                                               "status": 404,
                                               "detail": "요청한 ID의 스터디룸이 존재하지 않습니다.",
-                                              "instance": "/api/study-rooms/999"
+                                              "instance": "/api/study-rooms/999/problems"
                                             }
                                             """
                             )
                     )
             )
     })
-    @PostMapping("/study-rooms/{studyRoomId}")
+    @PostMapping("/study-rooms/{studyRoomId}/problems")
     ResponseEntity<ProblemCreateResponse> createProblem(
             @Parameter(hidden = true) @LoginUser Long userId,
             @PathVariable Long studyRoomId,
@@ -319,7 +319,7 @@ public interface ProblemControllerDocs {
                                             {
                                               "title": "스터디룸 접근 권한 없음",
                                               "status": 403,
-                                              "detail": "해당 스터디룸의 멤버가 아닙니다.",
+                                              "detail": "해당 스터디룸의 문제를 풀 수 있는 권한이 없습니다.",
                                               "instance": "/api/problems/1"
                                             }
                                             """

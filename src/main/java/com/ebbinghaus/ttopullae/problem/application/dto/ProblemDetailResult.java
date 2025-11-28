@@ -34,10 +34,17 @@ public record ProblemDetailResult(
         }
 
         // ReviewState가 없으면 null 반환
-        ReviewGate currentGate = reviewState != null ? reviewState.getGate() : null;
-        LocalDate nextReviewDate = reviewState != null ? reviewState.getNextReviewDate() : null;
-        Integer reviewCount = reviewState != null ? reviewState.getReviewCount() : null;
-        Boolean includeInReview = reviewState != null ? reviewState.getIncludeInReview() : null;
+        ReviewGate currentGate = null;
+        LocalDate nextReviewDate = null;
+        Integer reviewCount = null;
+        Boolean includeInReview = null;
+
+        if (reviewState != null) {
+            currentGate = reviewState.getGate();
+            nextReviewDate = reviewState.getNextReviewDate();
+            reviewCount = reviewState.getReviewCount();
+            includeInReview = reviewState.getIncludeInReview();
+        }
 
         return new ProblemDetailResult(
                 problem.getProblemId(),
