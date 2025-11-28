@@ -48,6 +48,9 @@ public class ProblemService {
         User user = findUserById(command.userId());
         StudyRoom studyRoom = findStudyRoomById(command.studyRoomId());
 
+        // 스터디룸 멤버십 검증
+        validateStudyRoomMembership(user, studyRoom);
+
         validateProblemData(command);
 
         Problem problem = buildProblem(command, user, studyRoom);
@@ -533,13 +536,38 @@ public class ProblemService {
     }
 
     /**
-     * 그룹 스터디룸 접근 권한 검증
+     * 그룹 스터디룸 접근 권한 검증 (Problem 객체 기반)
      * - 개인 스터디룸: 소유자만 접근 가능
      * - 그룹 스터디룸: 소유자 또는 활성 멤버만 접근 가능
      */
     private void validateStudyRoomAccess(User user, Problem problem) {
         StudyRoom studyRoom = problem.getStudyRoom();
 
+        // 개인 스터디룸인 경우: 소유자만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.PERSONAL) {
+            if (!studyRoom.getOwner().getUserId().equals(user.getUserId())) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
+
+        // 그룹 스터디룸인 경우: 소유자 또는 활성 멤버만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.GROUP) {
+            boolean isOwner = studyRoom.getOwner().getUserId().equals(user.getUserId());
+            boolean isMember = studyRoomMemberRepository
+                    .existsByUserAndStudyRoomAndActive(user, studyRoom, true);
+
+            if (!isOwner && !isMember) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
+    }
+
+    /**
+     * 스터디룸 멤버십 검증 (StudyRoom 객체 기반)
+     * - 개인 스터디룸: 소유자만 접근 가능
+     * - 그룹 스터디룸: 소유자 또는 활성 멤버만 접근 가능
+     */
+    private void validateStudyRoomMembership(User user, StudyRoom studyRoom) {
         // 개인 스터디룸인 경우: 소유자만 접근 가능
         if (studyRoom.getRoomType() == RoomType.PERSONAL) {
             if (!studyRoom.getOwner().getUserId().equals(user.getUserId())) {
