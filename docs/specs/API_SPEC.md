@@ -841,25 +841,194 @@ Cookie: accessToken={JWT_TOKEN}
 
 ---
 
-## 5. AI 채점 테스트 API
+## 5. 문제 상세 조회 API
 
 ### 5.1. 기본 정보
+
+- **Endpoint**: `GET /api/problems/{problemId}`
+- **설명**: 특정 문제의 상세 정보를 조회합니다. 문제를 풀기 전에 문제 내용, 선택지(객관식인 경우), 현재 복습 상태를 확인할 수 있습니다. 정답 및 해설 정보는 포함되지 않습니다.
+- **인증**: **필수** (JWT 쿠키 인증)
+- **접근 권한**:
+  - 개인방 문제: 소유자만 조회 가능
+  - 그룹방 문제: 해당 그룹의 멤버만 조회 가능
+
+### 5.2. Request
+
+#### Headers
+
+```
+Cookie: accessToken={JWT_TOKEN}
+```
+
+#### Path Parameters
+
+| 파라미터 | 타입 | 필수 | 설명 | 예시 |
+|---------|------|------|------|------|
+| problemId | Long | O | 조회할 문제 ID | 123 |
+
+### 5.3. Response
+
+#### 5.3.1. Success Response (200 OK)
+
+##### Response Body
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| problemId | Long | 문제 ID | 123 |
+| question | String | 문제 내용 | "자바의 접근 제어자가 아닌 것은?" |
+| problemType | String | 문제 유형 (MCQ, OX, SHORT, SUBJECTIVE) | "MCQ" |
+| studyRoomId | Long | 문제가 속한 스터디룸 ID | 1 |
+| choices | List\<String\> | 선택지 목록 (객관식만 해당, 다른 유형은 null) | ["public", "private", "protected", "friend"] |
+| currentGate | String | 현재 복습 관문 (GATE_1, GATE_2, GRADUATED) | "GATE_1" |
+| nextReviewDate | String | 다음 복습 날짜 (yyyy-MM-dd) | "2025-11-29" |
+| reviewCount | Integer | 복습 횟수 | 0 |
+| includeInReview | Boolean | 복습 루프 포함 여부 | true |
+
+**주의**: `currentGate`, `nextReviewDate`, `reviewCount`, `includeInReview` 필드는 해당 사용자가 아직 이 문제의 복습 상태를 가지지 않은 경우 `null`입니다. (그룹방 타인 문제를 처음 조회하는 경우)
+
+##### Response Example - 객관식 문제
+
+```json
+{
+  "problemId": 123,
+  "question": "자바의 접근 제어자가 아닌 것은?",
+  "problemType": "MCQ",
+  "studyRoomId": 1,
+  "choices": ["public", "private", "protected", "friend"],
+  "currentGate": "GATE_1",
+  "nextReviewDate": "2025-11-29",
+  "reviewCount": 0,
+  "includeInReview": true
+}
+```
+
+##### Response Example - 단답형 문제
+
+```json
+{
+  "problemId": 124,
+  "question": "자바에서 문자열을 다루는 불변 클래스는?",
+  "problemType": "SHORT",
+  "studyRoomId": 1,
+  "choices": null,
+  "currentGate": "GATE_1",
+  "nextReviewDate": "2025-11-29",
+  "reviewCount": 0,
+  "includeInReview": true
+}
+```
+
+##### Response Example - 그룹방 타인 문제 (복습 상태 없음)
+
+```json
+{
+  "problemId": 125,
+  "question": "DDD의 핵심 개념에 대해 설명하시오.",
+  "problemType": "SUBJECTIVE",
+  "studyRoomId": 2,
+  "choices": null,
+  "currentGate": null,
+  "nextReviewDate": null,
+  "reviewCount": null,
+  "includeInReview": null
+}
+```
+
+#### 5.3.2. Error Responses
+
+##### 401 Unauthorized - JWT 토큰 없음 또는 잘못된 토큰
+
+```json
+{
+  "title": "인증 실패",
+  "status": 401,
+  "detail": "유효하지 않은 JWT 토큰입니다.",
+  "instance": "/api/problems/123"
+}
+```
+
+##### 403 Forbidden - 접근 권한 없음
+
+```json
+{
+  "title": "스터디룸 접근 권한 없음",
+  "status": 403,
+  "detail": "해당 스터디룸의 문제를 풀 수 있는 권한이 없습니다.",
+  "instance": "/api/problems/123"
+}
+```
+
+**발생 조건**:
+- 다른 사용자의 개인방 문제를 조회하려는 경우
+- 멤버가 아닌 그룹방의 문제를 조회하려는 경우
+
+##### 404 Not Found - 문제를 찾을 수 없음
+
+```json
+{
+  "title": "문제를 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 ID의 문제가 존재하지 않습니다.",
+  "instance": "/api/problems/99999"
+}
+```
+
+##### 404 Not Found - 사용자를 찾을 수 없음
+
+```json
+{
+  "title": "사용자를 찾을 수 없음",
+  "status": 404,
+  "detail": "요청한 ID의 사용자가 존재하지 않습니다.",
+  "instance": "/api/problems/123"
+}
+```
+
+### 5.4. 비즈니스 로직
+
+#### 5.4.1. 접근 권한 검증
+
+1. **개인방 문제**: 문제가 속한 스터디룸의 소유자만 조회 가능
+2. **그룹방 문제**: 해당 그룹 스터디의 멤버만 조회 가능
+
+#### 5.4.2. 복습 상태 조회
+
+- 문제에 대한 사용자의 복습 상태(`ProblemReviewState`)를 조회합니다.
+- 복습 상태가 없는 경우 (그룹방 타인 문제를 처음 조회하는 경우), 복습 관련 필드는 모두 `null`로 반환됩니다.
+
+#### 5.4.3. 선택지 조회
+
+- 객관식(MCQ) 문제인 경우에만 선택지 목록을 조회하여 반환합니다.
+- 다른 유형의 문제는 `choices` 필드가 `null`입니다.
+- **정답 정보는 포함되지 않습니다** (문제 풀이 전이므로)
+
+### 5.5. 활용 시나리오
+
+1. **문제 풀이 화면 진입**: 사용자가 특정 문제를 풀기 위해 문제 풀이 화면에 진입할 때 문제 정보를 조회합니다.
+2. **복습 상태 확인**: 현재 문제가 어느 복습 관문에 있는지, 언제 다시 복습해야 하는지 확인합니다.
+3. **그룹방 문제 미리보기**: 그룹 멤버가 다른 멤버의 문제를 풀기 전에 미리 내용을 확인합니다.
+
+---
+
+## 6. AI 채점 테스트 API
+
+### 6.1. 기본 정보
 
 - **Endpoint**: `POST /api/grading/test`
 - **설명**: 서술형 답안에 대한 AI 자동 채점 기능을 테스트합니다. OpenAI GPT-4o-mini 모델을 사용하여 사용자 답안을 모범 답안 및 핵심 키워드와 비교하여 채점하고 피드백을 제공합니다.
 - **인증**: 필요 (JWT 쿠키)
 - **용도**: 개발 및 테스트 목적
 
-### 5.2. Request
+### 6.2. Request
 
-#### 5.2.1. Headers
+#### 6.2.1. Headers
 
 ```
 Content-Type: application/json
 Cookie: accessToken={JWT_TOKEN}
 ```
 
-#### 5.2.2. Body
+#### 6.2.2. Body
 
 | 필드 | 타입 | 필수 | 설명 | 예시 |
 |------|------|------|------|------|
@@ -869,7 +1038,7 @@ Cookie: accessToken={JWT_TOKEN}
 | keywords | List\<String\> | O | 핵심 키워드 리스트 (최소 1개) | ["제어의 역전", "컨테이너"] |
 | userAnswer | String | O | 사용자 답안 | "제어의 역전이며, 스프링 컨테이너가 객체를 관리합니다." |
 
-#### 5.2.3. Request Example
+#### 6.2.3. Request Example
 
 ```json
 {
@@ -881,9 +1050,9 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 5.3. Response
+### 6.3. Response
 
-#### 5.3.1. Success Response (200 OK)
+#### 6.3.1. Success Response (200 OK)
 
 ##### Response Body
 
@@ -916,7 +1085,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-#### 5.3.2. Error Responses
+#### 6.3.2. Error Responses
 
 ##### 400 Bad Request - 필수 입력값 누락
 
@@ -962,7 +1131,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 5.4. 비즈니스 로직
+### 6.4. 비즈니스 로직
 
 1. **인증 검증**
    - JWT 쿠키에서 사용자 ID 추출
@@ -989,7 +1158,7 @@ Cookie: accessToken={JWT_TOKEN}
 6. **결과 반환**
    - 클라이언트에 채점 결과 전달
 
-### 5.5. AI 채점 기준
+### 6.5. AI 채점 기준
 
 AI는 다음 기준에 따라 답안을 채점합니다:
 
@@ -998,7 +1167,7 @@ AI는 다음 기준에 따라 답안을 채점합니다:
    - 단순히 단어가 존재하는지가 아니라, 해당 키워드의 개념과 맥락이 올바르게 설명되었는지 판단
 3. **판정**: 1번과 2번 기준을 모두 충족할 경우에만 `isCorrect` 값이 `true`
 
-### 5.6. 주의사항
+### 6.6. 주의사항
 
 - **개발/테스트 전용**: 이 API는 AI 채점 기능을 테스트하기 위한 용도로, 실제 문제 풀이 시나리오에서는 별도의 답안 제출 API를 통해 자동 채점이 이루어집니다.
 - **API 키 필요**: 실제 OpenAI API를 호출하므로 `.env` 파일에 `OPENAI_API_KEY` 설정이 필요합니다.
@@ -1008,29 +1177,29 @@ AI는 다음 기준에 따라 답안을 채점합니다:
 
 ---
 
-## 6. 개인 공부방 문제 목록 조회 API
+## 7. 개인 공부방 문제 목록 조회 API
 
-### 6.1. 기본 정보
+### 7.1. 기본 정보
 
 - **Endpoint**: `GET /api/study-rooms/personal/{studyRoomId}/problems`
 - **설명**: 개인 공부방에 등록된 문제 목록을 조회합니다. 복습 관문(GATE_1, GATE_2, GRADUATED)별로 필터링할 수 있습니다.
 - **인증**: **필수** (JWT 쿠키 인증)
 
-### 6.2. Request
+### 7.2. Request
 
-#### 6.2.1. Headers
+#### 7.2.1. Headers
 
 ```
 Cookie: accessToken={JWT_TOKEN}
 ```
 
-#### 6.2.2. Path Parameters
+#### 7.2.2. Path Parameters
 
 | 파라미터 | 타입 | 필수 | 설명 | 예시 |
 |---------|------|------|------|------|
 | studyRoomId | Long | O | 조회할 개인 공부방 ID | 1 |
 
-#### 6.2.3. Query Parameters
+#### 7.2.3. Query Parameters
 
 | 파라미터 | 타입 | 필수 | 설명 | 기본값 | 가능한 값 |
 |---------|------|------|------|--------|----------|
@@ -1042,7 +1211,7 @@ Cookie: accessToken={JWT_TOKEN}
 - `GATE_2`: 7일차 복습 관문의 문제만 조회
 - `GRADUATED`: 복습을 완료한 문제만 조회
 
-#### 6.2.4. Request Example
+#### 7.2.4. Request Example
 
 ```http
 GET /api/study-rooms/personal/1/problems?filter=ALL
@@ -1054,9 +1223,9 @@ GET /api/study-rooms/personal/1/problems?filter=GATE_1
 Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 6.3. Response
+### 7.3. Response
 
-#### 6.3.1. Success Response (200 OK)
+#### 7.3.1. Success Response (200 OK)
 
 ##### Response Body
 
@@ -1160,9 +1329,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 6.4. Error Responses
+### 7.4. Error Responses
 
-#### 6.4.1. 401 Unauthorized - 인증 실패
+#### 7.4.1. 401 Unauthorized - 인증 실패
 
 **JWT 토큰 없음**
 ```json
@@ -1184,7 +1353,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 6.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
+#### 7.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
 
 ```json
 {
@@ -1195,7 +1364,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 6.4.3. 400 Bad Request - 개인 공부방이 아님
+#### 7.4.3. 400 Bad Request - 개인 공부방이 아님
 
 ```json
 {
@@ -1206,7 +1375,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 6.4.4. 403 Forbidden - 스터디룸 소유자가 아님
+#### 7.4.4. 403 Forbidden - 스터디룸 소유자가 아님
 
 ```json
 {
@@ -1217,7 +1386,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 6.5. 비즈니스 로직
+### 7.5. 비즈니스 로직
 
 1. **인증 검증**
    - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
@@ -1248,7 +1417,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - 조회된 문제 목록을 Response DTO로 변환
    - 200 OK 상태 코드와 함께 반환
 
-### 6.6. 주의사항
+### 7.6. 주의사항
 
 - **개인 공부방 전용**: 이 API는 개인 공부방(`RoomType.PERSONAL`)만 지원합니다. 그룹 스터디의 문제 목록은 별도 API를 사용해야 합니다.
 - **소유자만 조회 가능**: 개인 공부방의 소유자만 문제 목록을 조회할 수 있습니다.
@@ -1258,23 +1427,23 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 7. 그룹 공부방 문제 목록 조회 API
+## 8. 그룹 공부방 문제 목록 조회 API
 
-### 7.1. 기본 정보
+### 8.1. 기본 정보
 
 - **Endpoint**: `GET /api/study-rooms/group/{studyRoomId}/problems`
 - **설명**: 그룹 공부방에 등록된 문제 목록을 조회합니다. 복습 관문(GATE_1, GATE_2, GRADUATED)별로 필터링할 수 있으며, 복습 루프에 포함되지 않은 문제(NOT_IN_REVIEW)도 조회할 수 있습니다.
 - **인증**: **필수** (JWT 쿠키 인증)
 
-### 7.2. Request
+### 8.2. Request
 
-#### 7.2.1. Headers
+#### 8.2.1. Headers
 
 ```
 Cookie: accessToken={JWT_TOKEN}
 ```
 
-#### 7.2.2. Path Parameters
+#### 8.2.2. Path Parameters
 
 | 파라미터 | 타입 | 필수 | 설명 | 예시 |
 |---------|------|------|------|------|
@@ -1293,7 +1462,7 @@ Cookie: accessToken={JWT_TOKEN}
 - `GATE_2`: 7일차 복습 관문의 문제만 조회
 - `GRADUATED`: 복습을 완료한 문제만 조회
 
-#### 7.2.4. Request Example
+#### 8.2.4. Request Example
 
 ```http
 GET /api/study-rooms/group/2/problems?filter=ALL
@@ -1305,9 +1474,9 @@ GET /api/study-rooms/group/2/problems?filter=NOT_IN_REVIEW
 Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 7.3. Response
+### 8.3. Response
 
-#### 7.3.1. Success Response (200 OK)
+#### 8.3.1. Success Response (200 OK)
 
 ##### Response Body
 
@@ -1438,9 +1607,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 7.4. Error Responses
+### 8.4. Error Responses
 
-#### 7.4.1. 401 Unauthorized - 인증 실패
+#### 8.4.1. 401 Unauthorized - 인증 실패
 
 **JWT 토큰 없음**
 ```json
@@ -1462,7 +1631,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 7.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
+#### 8.4.2. 404 Not Found - 스터디룸을 찾을 수 없음
 
 ```json
 {
@@ -1473,7 +1642,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 7.4.3. 400 Bad Request - 그룹 스터디가 아님
+#### 8.4.3. 400 Bad Request - 그룹 스터디가 아님
 
 ```json
 {
@@ -1484,7 +1653,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 7.4.4. 400 Bad Request - 잘못된 필터
+#### 8.4.4. 400 Bad Request - 잘못된 필터
 
 ```json
 {
@@ -1495,7 +1664,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 7.4.5. 403 Forbidden - 그룹 멤버가 아님
+#### 8.4.5. 403 Forbidden - 그룹 멤버가 아님
 
 ```json
 {
@@ -1506,7 +1675,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 7.5. 비즈니스 로직
+### 8.5. 비즈니스 로직
 
 1. **인증 검증**
    - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
@@ -1540,7 +1709,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - `creatorName`: 문제 생성자의 username
    - 200 OK 상태 코드와 함께 반환
 
-### 7.6. 주의사항
+### 8.6. 주의사항
 
 - **그룹 스터디 전용**: 이 API는 그룹 스터디(`RoomType.GROUP`)만 지원합니다. 개인 공부방의 문제 목록은 별도 API를 사용해야 합니다.
 - **그룹 멤버만 조회 가능**: 활성 그룹 멤버만 문제 목록을 조회할 수 있습니다.
@@ -1549,7 +1718,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - **isMyProblem 활용**: 클라이언트는 이 필드를 사용하여 본인이 만든 문제와 타인이 만든 문제를 구분할 수 있습니다.
 - **creatorName 표시**: 각 문제의 생성자 이름이 표시되어 그룹 내 누가 문제를 만들었는지 확인할 수 있습니다.
 
-### 7.7. 개인 공부방 문제 목록 조회와의 차이점
+### 8.7. 개인 공부방 문제 목록 조회와의 차이점
 
 | 항목 | 개인 공부방 API | 그룹 공부방 API |
 |------|----------------|----------------|
@@ -1562,23 +1731,23 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 8. 오늘의 복습 문제 조회 API
+## 9. 오늘의 복습 문제 조회 API
 
-### 7.1. 기본 정보
+### 9.1. 기본 정보
 
 - **Endpoint**: `GET /api/review/today`
 - **설명**: 사용자가 오늘 복습해야 할 문제 목록과 대시보드 통계를 조회합니다. 에빙하우스 망각곡선 기반 간헐적 복습 시스템의 핵심 기능으로, 1일차 복습(GATE_1)과 7일차 복습(GATE_2) 문제를 관문별로 필터링할 수 있습니다.
 - **인증**: **필수** (JWT 쿠키 인증)
 
-### 7.2. Request
+### 9.2. Request
 
-#### 7.2.1. Headers
+#### 9.2.1. Headers
 
 ```
 Cookie: accessToken={JWT_TOKEN}
 ```
 
-#### 7.2.2. Query Parameters
+#### 9.2.2. Query Parameters
 
 | 파라미터 | 타입 | 필수 | 설명 | 기본값 | 가능한 값 |
 |---------|------|------|------|--------|----------|
@@ -1589,7 +1758,7 @@ Cookie: accessToken={JWT_TOKEN}
 - `GATE_1`: 1일차 복습 관문의 문제만 조회
 - `GATE_2`: 7일차 복습 관문의 문제만 조회
 
-#### 7.2.3. Request Example
+#### 9.2.3. Request Example
 
 ```http
 GET /api/review/today?filter=ALL
@@ -1601,9 +1770,9 @@ GET /api/review/today?filter=GATE_1
 Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 7.3. Response
+### 9.3. Response
 
-#### 7.3.1. Success Response (200 OK)
+#### 9.3.1. Success Response (200 OK)
 
 ##### Response Body
 
@@ -1708,9 +1877,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 7.4. Error Responses
+### 9.4. Error Responses
 
-#### 7.4.1. 400 Bad Request - 잘못된 필터 값
+#### 9.4.1. 400 Bad Request - 잘못된 필터 값
 
 ```json
 {
@@ -1721,7 +1890,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-#### 7.4.2. 401 Unauthorized - 인증 실패
+#### 9.4.2. 401 Unauthorized - 인증 실패
 
 **JWT 토큰 없음**
 ```json
@@ -1743,9 +1912,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 7.5. 비즈니스 로직
+### 9.5. 비즈니스 로직
 
-#### 7.5.1. 복습 대상 선정 기준
+#### 9.5.1. 복습 대상 선정 기준
 
 오늘의 복습 문제는 다음 조건 중 하나라도 만족하는 문제입니다:
 
@@ -1758,7 +1927,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - 오늘 중에 관문이 변경되어도 목록에서 사라지지 않음
    - 오늘 졸업(GRADUATED)한 문제도 포함됨
 
-#### 7.5.2. 필터링 로직
+#### 9.5.2. 필터링 로직
 
 - **ALL**: GATE_1과 GATE_2 문제 모두 조회 (오늘 졸업한 문제 포함)
 - **GATE_1**: GATE_1 상태이거나, 오늘 GATE_1 상태로 포함된 적이 있는 문제
@@ -1768,14 +1937,14 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - 사용자가 필터를 적용한 후 문제를 풀어서 관문이 변경되어도, 오늘 하루 동안은 해당 필터에서 문제가 사라지지 않습니다.
 - `todayReviewIncludedGate` 필드를 사용하여 원래 속했던 필터에 계속 표시됩니다.
 
-#### 7.5.3. 완료 여부 판단
+#### 9.5.3. 완료 여부 판단
 
 문제가 "완료"로 간주되는 조건:
 - `todayReviewFirstAttemptDate = 오늘 날짜`
 - 즉, 오늘 첫 번째 시도를 완료한 문제
 - 정답/오답 여부와 관계없이 첫 시도만 했다면 완료로 처리
 
-#### 7.5.4. 처리 순서
+#### 9.5.4. 처리 순서
 
 1. **인증 검증**
    - JWT 쿠키에서 사용자 ID 추출 (인터셉터에서 자동 처리)
@@ -1801,7 +1970,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - 조회된 데이터를 Response DTO로 변환
    - 200 OK 상태 코드와 함께 반환
 
-### 7.6. 주의사항
+### 9.6. 주의사항
 
 - **목록 일관성 보장**: 오늘 조회 시점에 목록에 포함된 문제는 하루 동안 사라지지 않습니다.
 - **졸업 문제 포함**: 오늘 졸업한 문제도 목록에 표시되어 완료 통계에 반영됩니다.
@@ -1810,7 +1979,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - **필터 기본값**: `filter` 파라미터를 생략하면 `"ALL"`이 기본값으로 적용됩니다.
 - **개인/그룹 모두 지원**: 개인 공부방과 그룹 스터디의 문제를 모두 포함합니다.
 
-### 7.7. 데이터베이스 스키마 보강
+### 9.7. 데이터베이스 스키마 보강
 
 `problem_review_states` 테이블에 다음 필드가 추가되었습니다:
 
@@ -1825,15 +1994,15 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 8. 문제 풀이 제출 API
+## 10. 문제 풀이 제출 API
 
-### 8.1. 기본 정보
+### 10.1. 기본 정보
 
 - **Endpoint**: `POST /api/problems/{problemId}/submit`
 - **설명**: 문제를 풀고 답안을 제출하여 채점 결과와 복습 상태를 반환받습니다.
 - **인증**: 필수 (JWT 쿠키)
 
-### 8.2. Request
+### 10.2. Request
 
 #### Path Parameters
 
@@ -1868,7 +2037,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 8.3. Response
+### 10.3. Response
 
 #### Response Body
 
@@ -1885,7 +2054,7 @@ Cookie: accessToken={JWT_TOKEN}
 
 #### 시나리오별 Response Examples
 
-**8.3.1. 오늘의 복습 문제 첫 시도 - 정답 (GATE_1 → GATE_2 승급)**
+**10.3.1. 오늘의 복습 문제 첫 시도 - 정답 (GATE_1 → GATE_2 승급)**
 
 ```json
 {
@@ -1900,7 +2069,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-**8.3.2. 오늘의 복습 문제 첫 시도 - 오답 (GATE_2 → GATE_1 강등)**
+**10.3.2. 오늘의 복습 문제 첫 시도 - 오답 (GATE_2 → GATE_1 강등)**
 
 ```json
 {
@@ -1915,7 +2084,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-**8.3.3. 오늘의 복습 문제 재시도 (상태 불변)**
+**10.3.3. 오늘의 복습 문제 재시도 (상태 불변)**
 
 ```json
 {
@@ -1930,7 +2099,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-**8.3.4. 서술형 문제 AI 채점**
+**10.3.4. 서술형 문제 AI 채점**
 
 ```json
 {
@@ -1945,7 +2114,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-**8.3.5. 그룹방 타인 문제 첫 풀이 (ReviewState 없음)**
+**10.3.5. 그룹방 타인 문제 첫 풀이 (ReviewState 없음)**
 
 ```json
 {
@@ -1962,7 +2131,7 @@ Cookie: accessToken={JWT_TOKEN}
 
 **설명**: 그룹방에서 타인이 만든 문제를 처음 풀 경우, ReviewState가 생성되지 않아 복습 상태 관련 필드들이 모두 null로 반환됩니다. 복습 루프에 추가하려면 별도로 "복습 루프 포함 설정 API"를 호출해야 합니다.
 
-**8.3.6. 비복습 문제 풀이 (미래 문제 또는 졸업 문제)**
+**10.3.6. 비복습 문제 풀이 (미래 문제 또는 졸업 문제)**
 
 ```json
 {
@@ -1977,7 +2146,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 8.4. Error Responses
+### 10.4. Error Responses
 
 #### 400 Bad Request - 답안 누락
 
@@ -2012,9 +2181,9 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 8.5. 비즈니스 로직
+### 10.5. 비즈니스 로직
 
-#### 8.5.1. 동작 방식 개요
+#### 10.5.1. 동작 방식 개요
 
 문제 풀이 제출 API는 설계 문서 `docs/design/today-review-and-problem-submission.md`의 의사 결정 플로우차트를 따릅니다.
 
@@ -2044,7 +2213,7 @@ Cookie: accessToken={JWT_TOKEN}
               [채점 + 상태 전이 + todayReviewFirstAttemptDate 기록]
 ```
 
-#### 8.5.2. 상태 전이 규칙
+#### 10.5.2. 상태 전이 규칙
 
 **첫 시도 정답:**
 - `GATE_1 → GATE_2` (nextReviewDate = today + 7일)
@@ -2057,7 +2226,7 @@ Cookie: accessToken={JWT_TOKEN}
 **재시도 (2회차 이상):**
 - 모든 경우 상태 불변 (채점만 제공)
 
-#### 8.5.3. 그룹방 타인 문제 첫 풀이
+#### 10.5.3. 그룹방 타인 문제 첫 풀이
 
 그룹방에서 다른 멤버가 만든 문제를 처음 풀 때:
 1. `ProblemReviewState` 생성되지 않음 (복습 루프에 자동 추가 안 됨)
@@ -2066,14 +2235,14 @@ Cookie: accessToken={JWT_TOKEN}
 4. 복습 루프에 추가하려면 별도로 "복습 루프 포함 설정 API" (`PATCH /api/problems/{problemId}/review-inclusion`) 호출 필요
 5. 복습 루프 포함 설정 후 다음 날부터 "오늘의 복습 문제"로 조회됨
 
-#### 8.5.4. 채점 로직
+#### 10.5.4. 채점 로직
 
 - **객관식 (MCQ)**: 제출한 선택지 인덱스와 정답 인덱스 비교
 - **OX (TRUE_FALSE)**: boolean 값 비교
 - **단답형 (SHORT_ANSWER)**: 대소문자 무시, 앞뒤 공백 제거 후 문자열 비교
 - **서술형 (ESSAY)**: AI 채점 서비스 (`AiGradingService`) 호출하여 키워드 기반 채점
 
-### 8.6. 주요 특징
+### 10.6. 주요 특징
 
 1. **오늘의 복습 문제와 비복습 문제 구분**
    - 오늘의 복습 문제: 매일 자정 스냅샷된 문제 (`todayReviewIncludedDate == today`)
@@ -2093,15 +2262,15 @@ Cookie: accessToken={JWT_TOKEN}
 
 ---
 
-## 9. 복습 루프 포함 설정 API
+## 11. 복습 루프 포함 설정 API
 
-### 9.1. 기본 정보
+### 11.1. 기본 정보
 
 - **Endpoint**: `PATCH /api/problems/{problemId}/review-inclusion`
 - **설명**: 그룹방 타인 문제를 복습 주기에 포함할지 설정합니다.
 - **인증**: 필수 (JWT 쿠키)
 
-### 9.2. Request
+### 11.2. Request
 
 #### Path Parameters
 
@@ -2141,7 +2310,7 @@ Cookie: accessToken={JWT_TOKEN}
 
 #### Response Examples
 
-**9.3.1. 복습 루프 포함 설정**
+**11.3.1. 복습 루프 포함 설정**
 
 ```json
 {
@@ -2159,7 +2328,7 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 9.4. Error Responses
+### 11.4. Error Responses
 
 #### 400 Bad Request - 본인 문제 설정 시도
 
@@ -2209,9 +2378,9 @@ Cookie: accessToken={JWT_TOKEN}
 }
 ```
 
-### 9.5. 비즈니스 규칙
+### 11.5. 비즈니스 규칙
 
-#### 9.5.1. 설정 가능 조건
+#### 11.5.1. 설정 가능 조건
 
 복습 루프 포함 설정을 변경하려면 다음 조건을 만족해야 합니다:
 
@@ -2227,7 +2396,7 @@ Cookie: accessToken={JWT_TOKEN}
    - ReviewState가 없으면 이 API 호출 시 자동으로 생성됨 (복습 주기에 추가)
    - 문제를 풀지 않은 상태에서도 이 API로 복습에 추가 가능
 
-#### 9.5.2. 기본 동작
+#### 11.5.2. 기본 동작
 
 - **본인이 만든 문제**
   - 복습 루프 포함: `true` (필수, 변경 불가)
@@ -2240,7 +2409,7 @@ Cookie: accessToken={JWT_TOKEN}
   - 기본값: `false` (복습에 포함하지 않음)
   - 한 번만 설정 가능, 설정 후 `reviewInclusionConfigured`: `true`
 
-#### 9.5.3. 사용 시나리오
+#### 11.5.3. 사용 시나리오
 
 **시나리오 1: 그룹방 타인 문제를 풀고 복습에 추가**
 1. 그룹방의 다른 멤버가 만든 문제를 풀이 (`POST /api/problems/{problemId}/submit`)
@@ -2265,7 +2434,7 @@ Cookie: accessToken={JWT_TOKEN}
 1. 본인이 만든 문제에 대해 복습 루프 포함 설정 API 호출
 2. `400 Bad Request` 응답 (본인 문제는 설정 변경 불가)
 
-### 9.6. 주요 특징
+### 11.6. 주요 특징
 
 1. **복습 루프와 이메일 알림의 관계**
    - `includeInReview`는 "문제가 복습 주기에 포함되는지" 여부를 결정
@@ -2289,16 +2458,16 @@ Cookie: accessToken={JWT_TOKEN}
 
 ---
 
-## 10. 그룹 스터디 멤버 목록 조회 API
+## 12. 그룹 스터디 멤버 목록 조회 API
 
-### 10.1. 기본 정보
+### 12.1. 기본 정보
 
 - **Endpoint**: `GET /api/study-rooms/group/{studyRoomId}/members`
 - **설명**: 그룹 스터디의 멤버 목록을 조회합니다. 방장이 목록 맨 앞에 표시됩니다.
 - **인증**: 필수 (JWT 쿠키)
 - **권한**: 그룹 멤버만 접근 가능
 
-### 10.2. Request
+### 12.2. Request
 
 #### Path Parameters
 
@@ -2320,7 +2489,7 @@ Host: localhost:8080
 Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### 10.3. Response
+### 12.3. Response
 
 #### Success (200 OK)
 
@@ -2361,7 +2530,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 10.4. Error Responses
+### 12.4. Error Responses
 
 #### 400 Bad Request - 개인 공부방 ID로 요청
 
@@ -2411,9 +2580,9 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 }
 ```
 
-### 10.5. 비즈니스 규칙
+### 12.5. 비즈니스 규칙
 
-#### 10.5.1. 접근 권한
+#### 12.5.1. 접근 권한
 
 1. **그룹 멤버만 조회 가능**
    - 그룹 스터디의 `active` 상태인 멤버만 멤버 목록 조회 가능
@@ -2423,7 +2592,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - 개인 공부방(`PERSONAL`)에는 멤버 개념이 없음
    - 개인 공부방 ID로 요청 시 400 Bad Request 응답
 
-#### 10.5.2. 멤버 목록 정렬
+#### 12.5.2. 멤버 목록 정렬
 
 1. **방장 우선 정렬**
    - 응답의 `members` 배열에서 `isOwner: true`인 방장이 맨 앞에 위치
@@ -2433,7 +2602,7 @@ Cookie: accessToken=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    - `isOwner` 필드로 방장 여부를 명시적으로 표시
    - 각 그룹에는 항상 정확히 1명의 방장이 존재
 
-### 10.6. 주요 특징
+### 12.6. 주요 특징
 
 1. **방장 식별**
    - 각 멤버의 `isOwner` 필드로 방장 여부를 쉽게 확인

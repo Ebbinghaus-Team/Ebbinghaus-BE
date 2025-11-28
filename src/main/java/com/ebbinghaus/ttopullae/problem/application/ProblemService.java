@@ -48,6 +48,9 @@ public class ProblemService {
         User user = findUserById(command.userId());
         StudyRoom studyRoom = findStudyRoomById(command.studyRoomId());
 
+        // 스터디룸 멤버십 검증
+        validateStudyRoomMembership(user, studyRoom);
+
         validateProblemData(command);
 
         Problem problem = buildProblem(command, user, studyRoom);
@@ -93,6 +96,32 @@ public class ProblemService {
 
         // DTO 변환 (대시보드 통계 계산 및 풀이 상태 포함)
         return TodayReviewResult.of(reviewStates, today, todaysAttempts);
+    }
+
+    /**
+     * 문제 상세 정보를 조회합니다.
+     * 정답 정보는 노출하지 않습니다.
+     */
+    @Transactional(readOnly = true)
+    public ProblemDetailResult getProblemDetail(Long userId, Long problemId) {
+        User user = findUserById(userId);
+        Problem problem = findProblemById(problemId);
+
+        // 스터디룸 멤버십 검증
+        validateStudyRoomAccess(user, problem);
+
+        // 객관식 선택지 조회 (정답 제외)
+        List<ProblemChoice> choices = null;
+        if (problem.getProblemType() == ProblemType.MCQ) {
+            choices = problemChoiceRepository.findByProblem(problem);
+        }
+
+        // 사용자의 복습 상태 조회 (없으면 null)
+        ProblemReviewState reviewState = problemReviewStateRepository
+                .findByUserAndProblem(user, problem)
+                .orElse(null);
+
+        return ProblemDetailResult.of(problem, choices, reviewState);
     }
 
     private ReviewGate parseFilterToGate(String filter) {
@@ -507,13 +536,38 @@ public class ProblemService {
     }
 
     /**
-     * 그룹 스터디룸 접근 권한 검증
+     * 그룹 스터디룸 접근 권한 검증 (Problem 객체 기반)
      * - 개인 스터디룸: 소유자만 접근 가능
      * - 그룹 스터디룸: 소유자 또는 활성 멤버만 접근 가능
      */
     private void validateStudyRoomAccess(User user, Problem problem) {
         StudyRoom studyRoom = problem.getStudyRoom();
 
+        // 개인 스터디룸인 경우: 소유자만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.PERSONAL) {
+            if (!studyRoom.getOwner().getUserId().equals(user.getUserId())) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
+
+        // 그룹 스터디룸인 경우: 소유자 또는 활성 멤버만 접근 가능
+        if (studyRoom.getRoomType() == RoomType.GROUP) {
+            boolean isOwner = studyRoom.getOwner().getUserId().equals(user.getUserId());
+            boolean isMember = studyRoomMemberRepository
+                    .existsByUserAndStudyRoomAndActive(user, studyRoom, true);
+
+            if (!isOwner && !isMember) {
+                throw new ApplicationException(ProblemException.ROOM_ACCESS_DENIED);
+            }
+        }
+    }
+
+    /**
+     * 스터디룸 멤버십 검증 (StudyRoom 객체 기반)
+     * - 개인 스터디룸: 소유자만 접근 가능
+     * - 그룹 스터디룸: 소유자 또는 활성 멤버만 접근 가능
+     */
+    private void validateStudyRoomMembership(User user, StudyRoom studyRoom) {
         // 개인 스터디룸인 경우: 소유자만 접근 가능
         if (studyRoom.getRoomType() == RoomType.PERSONAL) {
             if (!studyRoom.getOwner().getUserId().equals(user.getUserId())) {
