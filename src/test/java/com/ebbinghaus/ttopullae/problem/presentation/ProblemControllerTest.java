@@ -107,7 +107,7 @@ class ProblemControllerTest {
         request.put("correctChoiceIndex", 3);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -136,7 +136,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -164,7 +164,7 @@ class ProblemControllerTest {
         request.put("answerText", "String");
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -193,7 +193,7 @@ class ProblemControllerTest {
         request.put("keywords", List.of("도메인", "엔티티", "리포지토리"));
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -222,7 +222,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
@@ -240,7 +240,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", "invalid.jwt.token"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -259,7 +259,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -278,7 +278,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -297,7 +297,7 @@ class ProblemControllerTest {
         request.put("answerBoolean", true);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", 99999L)
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", 99999L)
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -317,7 +317,7 @@ class ProblemControllerTest {
         request.put("correctChoiceIndex", 3);
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -337,7 +337,7 @@ class ProblemControllerTest {
         request.put("choices", List.of("public", "private", "protected", "friend"));
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -356,7 +356,7 @@ class ProblemControllerTest {
         request.put("explanation", "해설");
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -375,7 +375,7 @@ class ProblemControllerTest {
         request.put("explanation", "해설");
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -395,7 +395,7 @@ class ProblemControllerTest {
         request.put("keywords", List.of("도메인", "엔티티"));
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -415,7 +415,7 @@ class ProblemControllerTest {
         request.put("modelAnswerText", "DDD는 도메인을 중심으로 소프트웨어를 설계하는 방법론입니다.");
 
         // when & then
-        mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -435,7 +435,7 @@ class ProblemControllerTest {
         request.put("choices", List.of("public", "private", "protected", "friend"));
         request.put("correctChoiceIndex", 3);
 
-        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -472,7 +472,7 @@ class ProblemControllerTest {
         request.put("explanation", "String 클래스입니다.");
         request.put("answerText", "String");
 
-        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", testStudyRoom.getStudyRoomId())
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", testStudyRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -566,7 +566,7 @@ class ProblemControllerTest {
         request.put("explanation", "접근 불가");
         request.put("answerBoolean", true);
 
-        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}", anotherRoom.getStudyRoomId())
+        String createResponse = mockMvc.perform(post("/api/study-rooms/{studyRoomId}/problems", anotherRoom.getStudyRoomId())
                         .cookie(new Cookie("accessToken", anotherToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
