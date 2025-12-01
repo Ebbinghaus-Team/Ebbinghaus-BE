@@ -477,7 +477,7 @@ public interface ProblemControllerDocs {
                                               "title": "유효하지 않은 입력값",
                                               "status": 400,
                                               "detail": "answer: 답안은 필수입니다",
-                                              "instance": "/api/problems/1/submit"
+                                              "instance": "/api/1/submit"
                                             }
                                             """
                             )
@@ -494,7 +494,7 @@ public interface ProblemControllerDocs {
                                               "title": "토큰을 찾을 수 없음",
                                               "status": 401,
                                               "detail": "인증 토큰이 제공되지 않았습니다.",
-                                              "instance": "/api/problems/1/submit"
+                                              "instance": "/api/1/submit"
                                             }
                                             """
                             )
@@ -511,7 +511,7 @@ public interface ProblemControllerDocs {
                                               "title": "문제를 찾을 수 없음",
                                               "status": 404,
                                               "detail": "요청한 ID의 문제가 존재하지 않습니다.",
-                                              "instance": "/api/problems/999/submit"
+                                              "instance": "/api/999/submit"
                                             }
                                             """
                             )

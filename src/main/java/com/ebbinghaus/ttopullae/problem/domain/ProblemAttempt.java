@@ -24,6 +24,7 @@ public class ProblemAttempt extends BaseTimeEntity {
     @JoinColumn(name = "problem_id", nullable = false)
     private Problem problem;
 
+    @Column(columnDefinition = "TEXT")
     private String submittedAnswerText;
 
     private Integer submittedChoiceIndex;

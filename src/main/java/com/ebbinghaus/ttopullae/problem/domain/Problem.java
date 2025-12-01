@@ -35,12 +35,14 @@ public class Problem extends BaseTimeEntity {
     @Column(nullable = false)
     private String question;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String explanation;
 
     // 유형별 해답 컬럼
     private Boolean answerBoolean;
     private String answerText;
+
+    @Column(columnDefinition = "TEXT")
     private String modelAnswerText;
     private Integer correctChoiceIndex;
 
