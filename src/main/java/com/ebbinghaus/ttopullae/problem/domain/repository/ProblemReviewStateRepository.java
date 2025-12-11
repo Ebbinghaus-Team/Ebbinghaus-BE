@@ -3,6 +3,7 @@ package com.ebbinghaus.ttopullae.problem.domain.repository;
 import com.ebbinghaus.ttopullae.problem.domain.Problem;
 import com.ebbinghaus.ttopullae.problem.domain.ProblemReviewState;
 import com.ebbinghaus.ttopullae.problem.domain.ReviewGate;
+import com.ebbinghaus.ttopullae.problem.domain.repository.dto.TodayMailProjection;
 import com.ebbinghaus.ttopullae.studyroom.domain.StudyRoom;
 import com.ebbinghaus.ttopullae.user.domain.User;
 import java.time.LocalDate;
@@ -70,5 +71,20 @@ public interface ProblemReviewStateRepository extends JpaRepository<ProblemRevie
         @Param("today") LocalDate today,
         @Param("targetGate") ReviewGate targetGate
     );
+
+
+    @Query("""
+            SELECT
+                u.userId as userId,
+                u.email as email,
+                u.username as username,
+                p.question as question
+            FROM ProblemReviewState prs
+                 JOIN prs.user u
+                 JOIN prs.problem p
+            WHERE prs.todayReviewIncludedDate = :today
+                 AND u.receiveNotifications = true
+            """)
+    List<TodayMailProjection> findAllTodayReviewProblemMails(@Param("today")LocalDate today);
 
 }
