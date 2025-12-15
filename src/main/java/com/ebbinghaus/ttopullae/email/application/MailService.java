@@ -20,7 +20,7 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
-    @Async
+    @Async("mailExecutor")
     public void sendEmail(MailSendCommand command) {
         MimeMessage message = mailSender.createMimeMessage();
 
