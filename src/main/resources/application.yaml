@@ -2,7 +2,6 @@ spring:
   application:
     name: ttopullae
 
-
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:3306/main_db
     username: root
@@ -48,3 +47,6 @@ springdoc:
   swagger-ui:
     path: /docs/swagger
 
+# 오늘의 복습 문제 URL
+app:
+  problem-base-url: ${TODAY_PROBLEM_URL}

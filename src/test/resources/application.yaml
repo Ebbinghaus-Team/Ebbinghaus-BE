@@ -43,3 +43,6 @@ openai:
 springdoc:
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
+
+app:
+  problem-base-url: http://localhost:8080
