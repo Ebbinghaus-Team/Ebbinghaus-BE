@@ -37,12 +37,12 @@ public class MailService {
             helper.setTo(command.to());
             helper.setSubject("[Study Loop] 오늘의 복습 문제 목록이 도착했습니다!");
             helper.setText(htmlContent, true);
-            helper.setFrom(command.from());
+            helper.setFrom(command.from(), "Study Loop");
 
             mailSender.send(message);
             log.info("[MailService] 메일 전송 성공! (Target: {})", command.to());
 
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("[MailService] 메일 전송 실패 (Target: {})", command.to(), e);
         }
     }
