@@ -29,6 +29,11 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
             HttpServletResponse response,
             Object handler
     ) {
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
         // 쿠키에서 JWT 토큰 추출
         String token = CookieUtil.extractToken(request.getCookies());
 
