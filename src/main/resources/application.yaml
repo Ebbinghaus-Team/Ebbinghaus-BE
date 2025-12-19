@@ -2,7 +2,6 @@ spring:
   application:
     name: ttopullae
 
-
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:3306/main_db
     username: root
@@ -15,6 +14,19 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+  mail:
+    host: smtp.gmail.com          # 구글 SMTP 서버 주소
+    port: 587                     # 구글 SMTP 포트 번호
+    username: ${GOOGLE_EMAIL_ADDRESS:sample-email}  # 사용자 이메일
+    password: ${GOOGLE_EMAIL_PW:pw} # 사용자 앱 비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true              # 사용자 인증 여부
+          timeout: 5000           # 이메일 전송 타임아웃 시간
+          starttls:
+            enable: true          # TLS를 통해 안전한 통신 사용 여부
 
 # JWT 설정
 jwt:
@@ -34,3 +46,7 @@ springdoc:
   swagger-ui.display-request-duration: true
   swagger-ui:
     path: /docs/swagger
+
+# 오늘의 복습 문제 URL
+app:
+  problem-base-url: ${TODAY_PROBLEM_URL}

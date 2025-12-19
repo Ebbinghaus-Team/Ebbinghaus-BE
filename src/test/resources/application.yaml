@@ -15,6 +15,19 @@ spring:
       hibernate:
         format_sql: true
 
+  mail:
+    host: smtp.gmail.com          # 구글 SMTP 서버 주소
+    port: 587                     # 구글 SMTP 포트 번호
+    username: sample-email@example.com  # 사용자 이메일
+    password: 1234567890 # 사용자 앱 비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true              # 사용자 인증 여부
+          timeout: 5000           # 이메일 전송 타임아웃 시간
+          starttls:
+            enable: true          # TLS를 통해 안전한 통신 사용 여부
+
 # JWT 설정
 jwt:
   secret-key: test-secret-key-for-jwt-token-generation-and-validation
@@ -30,3 +43,6 @@ openai:
 springdoc:
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
+
+app:
+  problem-base-url: http://localhost:8080
