@@ -25,7 +25,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     private static final String[] ALLOWED_ORIGINS = {
             "https://ebbinghaus.chxghee.com", // 메인 API 서버
-            "https://ebbinghaus-team.github.io/Ebbinghaus-FE",
+            "https://ebbinghaus-two.vercel.app/",
             "http://localhost:5173",
             "http://localhost:4173"
     };
