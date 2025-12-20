@@ -29,7 +29,7 @@ public class MailSendScheduleService {
         this.fromEmail = fromEmail;
     }
 
-    @Scheduled(cron = "0 0 8 * * *")
+    @Scheduled(cron = "0 30 9 * * *")
     public void sendTodayProblem() {
         log.info("[MailSchedule] 메일 전송 스케줄러 시작");
 
