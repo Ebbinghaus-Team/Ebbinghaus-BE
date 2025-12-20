@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -20,6 +21,9 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
+    @Value("${app.problem-base-url}")
+    private String baseUrl;
+
     @Async("mailExecutor")
     public void sendEmail(MailSendCommand command) {
         MimeMessage message = mailSender.createMimeMessage();
@@ -31,6 +35,8 @@ public class MailService {
             Context context = new Context();
             context.setVariable("username", command.username());
             context.setVariable("problems", command.problems());
+
+            context.setVariable("baseUrl", baseUrl);
 
             String htmlContent = templateEngine.process("problem-mail", context);
 
