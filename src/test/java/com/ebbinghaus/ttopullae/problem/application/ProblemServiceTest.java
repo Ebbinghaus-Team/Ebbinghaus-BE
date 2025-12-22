@@ -1490,4 +1490,232 @@ class ProblemServiceTest {
         verify(problemChoiceRepository, never()).findByProblem(any());
         verify(problemReviewStateRepository, never()).findByUserAndProblem(any(), any());
     }
+
+    // ===== 복습 루프 포함 설정 API 테스트 =====
+
+    @Test
+    @DisplayName("복습 루프 포함 설정 성공 - 타인 문제 첫 설정 (ReviewState 새로 생성)")
+    void configureReviewInclusion_Success_FirstConfiguration() {
+        // Given
+        Long userId = 2L;
+        Long problemId = 1L;
+        Boolean includeInReview = true;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("user2@example.com")
+                .password("password")
+                .username("사용자2")
+                .receiveNotifications(true)
+                .build();
+
+        User mockCreator = User.builder()
+                .userId(1L)
+                .email("creator@example.com")
+                .password("password")
+                .username("생성자")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(mockCreator)
+                .roomType(RoomType.GROUP)
+                .name("그룹 스터디")
+                .joinCode("ABC123")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(mockCreator)
+                .problemType(ProblemType.MCQ)
+                .question("테스트 문제")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+        given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
+                .willReturn(Optional.empty());
+
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand command =
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand(
+                        problemId, includeInReview);
+
+        // When
+        Boolean result = problemService.configureReviewInclusion(userId, command);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(problemReviewStateRepository, times(1)).save(any(ProblemReviewState.class));
+        verify(problemReviewStateRepository, times(1)).findByUserAndProblem(mockUser, mockProblem);
+    }
+
+    @Test
+    @DisplayName("복습 루프 포함 설정 실패 - 이미 설정한 경우 예외 발생")
+    void configureReviewInclusion_Fail_AlreadyConfigured() {
+        // Given
+        Long userId = 2L;
+        Long problemId = 1L;
+        Boolean includeInReview = false;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("user2@example.com")
+                .password("password")
+                .username("사용자2")
+                .receiveNotifications(true)
+                .build();
+
+        User mockCreator = User.builder()
+                .userId(1L)
+                .email("creator@example.com")
+                .password("password")
+                .username("생성자")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(mockCreator)
+                .roomType(RoomType.GROUP)
+                .name("그룹 스터디")
+                .joinCode("ABC123")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(mockCreator)
+                .problemType(ProblemType.MCQ)
+                .question("테스트 문제")
+                .build();
+
+        // 이미 설정된 ReviewState
+        ProblemReviewState existingReviewState = ProblemReviewState.builder()
+                .user(mockUser)
+                .problem(mockProblem)
+                .gate(ReviewGate.GATE_1)
+                .nextReviewDate(LocalDate.now().plusDays(1))
+                .reviewCount(0)
+                .includeInReview(true)
+                .reviewInclusionConfigured(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+        given(problemReviewStateRepository.findByUserAndProblem(mockUser, mockProblem))
+                .willReturn(Optional.of(existingReviewState));
+
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand command =
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand(
+                        problemId, includeInReview);
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.configureReviewInclusion(userId, command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", ProblemException.REVIEW_INCLUSION_ALREADY_CONFIGURED);
+
+        verify(problemReviewStateRepository, never()).save(any(ProblemReviewState.class));
+    }
+
+    @Test
+    @DisplayName("복습 루프 포함 설정 실패 - 본인이 만든 문제는 설정 불가")
+    void configureReviewInclusion_Fail_OwnProblem() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 1L;
+        Boolean includeInReview = true;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("user@example.com")
+                .password("password")
+                .username("사용자")
+                .receiveNotifications(true)
+                .build();
+
+        StudyRoom mockStudyRoom = StudyRoom.builder()
+                .studyRoomId(1L)
+                .owner(mockUser)
+                .roomType(RoomType.PERSONAL)
+                .name("개인 스터디")
+                .build();
+
+        Problem mockProblem = Problem.builder()
+                .problemId(problemId)
+                .studyRoom(mockStudyRoom)
+                .creator(mockUser)
+                .problemType(ProblemType.MCQ)
+                .question("테스트 문제")
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.of(mockProblem));
+
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand command =
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand(
+                        problemId, includeInReview);
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.configureReviewInclusion(userId, command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", ProblemException.REVIEW_INCLUSION_NOT_CONFIGURABLE);
+
+        verify(problemReviewStateRepository, never()).findByUserAndProblem(any(), any());
+        verify(problemReviewStateRepository, never()).save(any(ProblemReviewState.class));
+    }
+
+    @Test
+    @DisplayName("복습 루프 포함 설정 실패 - 사용자 없음")
+    void configureReviewInclusion_Fail_UserNotFound() {
+        // Given
+        Long userId = 999L;
+        Long problemId = 1L;
+        Boolean includeInReview = true;
+
+        given(userRepository.findById(userId)).willReturn(Optional.empty());
+
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand command =
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand(
+                        problemId, includeInReview);
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.configureReviewInclusion(userId, command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", UserException.USER_NOT_FOUND);
+
+        verify(problemRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("복습 루프 포함 설정 실패 - 문제 없음")
+    void configureReviewInclusion_Fail_ProblemNotFound() {
+        // Given
+        Long userId = 1L;
+        Long problemId = 999L;
+        Boolean includeInReview = true;
+
+        User mockUser = User.builder()
+                .userId(userId)
+                .email("user@example.com")
+                .password("password")
+                .username("사용자")
+                .receiveNotifications(true)
+                .build();
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(mockUser));
+        given(problemRepository.findById(problemId)).willReturn(Optional.empty());
+
+        com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand command =
+                new com.ebbinghaus.ttopullae.problem.application.dto.ProblemReviewInclusionCommand(
+                        problemId, includeInReview);
+
+        // When & Then
+        assertThatThrownBy(() -> problemService.configureReviewInclusion(userId, command))
+                .isInstanceOf(ApplicationException.class)
+                .hasFieldOrPropertyWithValue("code", ProblemException.PROBLEM_NOT_FOUND);
+
+        verify(problemReviewStateRepository, never()).findByUserAndProblem(any(), any());
+    }
 }
