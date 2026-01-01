@@ -601,22 +601,27 @@ public class ProblemService {
             throw new ApplicationException(ProblemException.REVIEW_INCLUSION_NOT_CONFIGURABLE);
         }
 
-        // ReviewState 조회 또는 생성 (그룹방 타인 문제를 복습에 추가하는 시점)
-        ProblemReviewState reviewState = problemReviewStateRepository
-                .findByUserAndProblem(user, problem)
-                .orElseGet(() -> {
-                    // ReviewState가 없으면 생성 (복습 주기에 추가)
-                    ProblemReviewState newState = ProblemReviewState.builder()
-                            .user(user)
-                            .problem(problem)
-                            .gate(ReviewGate.GATE_1)
-                            .nextReviewDate(LocalDate.now().plusDays(1))
-                            .reviewCount(0)
-                            .includeInReview(command.includeInReview())
-                            .reviewInclusionConfigured(true)
-                            .build();
-                    return problemReviewStateRepository.save(newState);
-                });
+        // ReviewState 조회 (그룹방 타인 문제를 복습에 추가하는 시점)
+        Optional<ProblemReviewState> optionalReviewState =
+                problemReviewStateRepository.findByUserAndProblem(user, problem);
+
+        // ReviewState가 없으면 새로 생성 (첫 설정)
+        if (optionalReviewState.isEmpty()) {
+            ProblemReviewState newState = ProblemReviewState.builder()
+                    .user(user)
+                    .problem(problem)
+                    .gate(ReviewGate.GATE_1)
+                    .nextReviewDate(LocalDate.now().plusDays(1))
+                    .reviewCount(0)
+                    .includeInReview(command.includeInReview())
+                    .reviewInclusionConfigured(true)
+                    .build();
+            problemReviewStateRepository.save(newState);
+            return command.includeInReview();
+        }
+
+        // ReviewState가 이미 존재하는 경우 - 중복 체크 수행
+        ProblemReviewState reviewState = optionalReviewState.get();
 
         // 이미 설정했는지 확인
         if (!reviewState.canConfigureReviewInclusion()) {
